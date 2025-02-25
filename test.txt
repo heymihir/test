@@ -3,12 +3,17 @@ import pandas as pd
 def create_top10_vs_yesterday_pivots(df):
     df["Sum of Growth vs Yesterday"] = df.filter(like="v/s Yesterday").sum(axis=1)
     grouped = df.groupby(["CUST_NAME", "TL", "RM", "City"], as_index=False)["Sum of Growth vs Yesterday"].sum()
-    top10_gainers = grouped.nlargest(10, "Sum of Growth vs Yesterday")
-    top10_losers = grouped.nsmallest(10, "Sum of Growth vs Yesterday")
+    grouped["Sum of Growth vs Yesterday"] = grouped["Sum of Growth vs Yesterday"].round().astype("Int64")
+
+    top10_gainers = grouped.nlargest(10, "Sum of Growth vs Yesterday").reset_index(drop=True)
+    top10_losers = grouped.nsmallest(10, "Sum of Growth vs Yesterday").reset_index(drop=True)
+
     total_gainers = top10_gainers["Sum of Growth vs Yesterday"].sum()
     total_losers = top10_losers["Sum of Growth vs Yesterday"].sum()
-    top10_gainers.loc["Grand Total"] = ["", "", "", "", total_gainers]
-    top10_losers.loc["Grand Total"] = ["", "", "", "", total_losers]
+
+    top10_gainers.loc[len(top10_gainers)] = ["Grand Total", "", "", "", total_gainers]
+    top10_losers.loc[len(top10_losers)] = ["Grand Total", "", "", "", total_losers]
+
     return top10_gainers, top10_losers
 
 pivot_gainers, pivot_losers = create_top10_vs_yesterday_pivots(df_updated)
