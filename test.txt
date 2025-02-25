@@ -1,19 +1,36 @@
 import pandas as pd
 
-def create_top10_vs_yesterday_pivots(df):
-    df["Sum of Growth vs Yesterday"] = df.filter(like="v/s Yesterday").sum(axis=1)
-    grouped = df.groupby(["CUST_NAME", "TL", "RM", "City"], as_index=False)["Sum of Growth vs Yesterday"].sum()
-    grouped["Sum of Growth vs Yesterday"] = grouped["Sum of Growth vs Yesterday"].round().astype("Int64")
+def create_productwise_pivot(df):
+    products = ["CUA", "EEFC", "TMD", "ASSETS"]
+    for p in products:
+        lm_cols = [col for col in df.columns if col.startswith(f"EOP total {p} ")]
+        if not lm_cols:
+            continue
+        lm_col = lm_cols[0]
+        daily_cols = [col for col in df.columns if col.startswith(f"EOP-{p}-MTD-")]
+        daily_cols_sorted = sorted(daily_cols, key=lambda x: int(x.split("-")[-1]))
+        if len(daily_cols_sorted) < 2:
+            continue
+        daily_prev = daily_cols_sorted[-2]
+        daily_latest = daily_cols_sorted[-1]
+        df[f"{p}_last_month"] = df[lm_col]
+        df[f"{p}_daily_latest"] = df[daily_latest]
+        df[f"{p}_daily_prev"] = df[daily_prev]
+        df[f"{p}_daily_growth"] = df[f"{p}_daily_latest"] - df[f"{p}_daily_prev"]
+        df[f"{p}_growth_vs_month_end"] = df[f"{p}_daily_latest"] - df[f"{p}_last_month"]
+    cols = ["City"]
+    for p in products:
+        cols.extend([
+            f"{p}_last_month", 
+            f"{p}_daily_latest", 
+            f"{p}_daily_prev", 
+            f"{p}_daily_growth", 
+            f"{p}_growth_vs_month_end"
+        ])
+    pivot = df[cols].groupby("City").sum().reset_index()
+    total = pivot.select_dtypes(include="number").sum()
+    total["City"] = "Total"
+    pivot = pd.concat([pivot, pd.DataFrame([total])], ignore_index=True)
+    return pivot
 
-    top10_gainers = grouped.nlargest(10, "Sum of Growth vs Yesterday").reset_index(drop=True)
-    top10_losers = grouped.nsmallest(10, "Sum of Growth vs Yesterday").reset_index(drop=True)
-
-    total_gainers = top10_gainers["Sum of Growth vs Yesterday"].sum()
-    total_losers = top10_losers["Sum of Growth vs Yesterday"].sum()
-
-    top10_gainers.loc[len(top10_gainers)] = ["Grand Total", "", "", "", total_gainers]
-    top10_losers.loc[len(top10_losers)] = ["Grand Total", "", "", "", total_losers]
-
-    return top10_gainers, top10_losers
-
-pivot_gainers, pivot_losers = create_top10_vs_yesterday_pivots(df_updated)
+productwise_pivot = create_productwise_pivot(df_updated)
