@@ -1,38 +1,38 @@
 import pandas as pd
 
+def get_latest_three_avg(cols, prefix):
+    avg_cols = [c for c in cols if c.lower().startswith(prefix)]
+    dates = {c: pd.to_datetime(c[-6:], format="%b-%y", errors="coerce") for c in avg_cols}
+    dates = {c: d for c, d in dates.items() if d is not pd.NaT}
+    sorted_cols = sorted(dates, key=lambda c: dates[c], reverse=True)
+    return sorted_cols[:3]
+
 def create_avg_pivot(df):
-    pivot_data = {"Region": df["Region"], "City": df["City"]}
     products = ["CUA", "EEFC", "TMD", "ASSETS"]
+    pivot_data = {"Region": df["Region"], "City": df["City"]}
+    order = ["Region", "City"]
     for prod in products:
-        avg_cols = [col for col in df.columns if col.lower().startswith(f"avg {prod.lower()}")]
-        parsed = {}
-        for col in avg_cols:
-            dt = pd.to_datetime(col[-6:], format="%b'%y", errors="coerce")
-            if dt is not pd.NaT:
-                parsed[col] = dt
-        sorted_cols = sorted(parsed, key=lambda c: parsed[c])
-        if len(sorted_cols) < 2:
+        avg3 = get_latest_three_avg(df.columns, f"avg {prod.lower()}")
+        if len(avg3) < 2:
             continue
-        # Change: Taking the last 3 average columns (sorted in ascending order)
-        last_three = sorted_cols[-3:]
-        col_oldest, col_prev, col_latest = last_three
-        name_oldest = f"{prod}_{col_oldest[-6:]}"
-        name_prev   = f"{prod}_{col_prev[-6:]}"
-        name_latest = f"{prod}_{col_latest[-6:]}"
-        pivot_data[name_oldest] = df[col_oldest]
-        pivot_data[name_prev]   = df[col_prev]
-        pivot_data[name_latest] = df[col_latest]
-        # Change: Growth vs ME is computed as latest month minus previous month average
-        growth_name = f"{prod}_Growth_vs_ME"
-        pivot_data[growth_name] = df[col_latest] - df[col_prev]
+        # Rename average columns to product_last6 (e.g., "CUA_Jan-25")
+        new_names = [f"{prod}_{col[-6:]}" for col in avg3]
+        for orig, new in zip(avg3, new_names):
+            pivot_data[new] = df[orig]
+        # Growth vs Month End: latest month average minus previous month average
+        growth_col = f"{prod}_Growth_vs_ME"
+        pivot_data[growth_col] = df[avg3[0]] - df[avg3[1]]
+        order.extend(new_names)
+        order.append(growth_col)
     pivot_df = pd.DataFrame(pivot_data)
     pivot_df = pivot_df.groupby(["Region", "City"], as_index=False).sum()
     num_cols = pivot_df.select_dtypes(include="number").columns
     pivot_df[num_cols] = pivot_df[num_cols].round().astype(int)
-    total = pivot_df[num_cols].sum()
-    total["Region"] = "Total"
-    total["City"] = "Total"
-    pivot_df = pd.concat([pivot_df, pd.DataFrame([total])], ignore_index=True)
+    tot = pivot_df[num_cols].sum()
+    tot["Region"] = "Total"
+    tot["City"] = "Total"
+    pivot_df = pd.concat([pivot_df, pd.DataFrame([tot])], ignore_index=True)
+    pivot_df = pivot_df[order]
     return pivot_df
 
 avg_pivot = create_avg_pivot(df_updated)
