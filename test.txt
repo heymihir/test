@@ -1,36 +1,43 @@
-mport pandas as pd
+import pandas as pd
 
-def create_productwise_pivot(df):
+def create_product_pivot(df):
     products = ["CUA", "EEFC", "TMD", "ASSETS"]
-    for p in products:
-        lm_cols = [col for col in df.columns if col.startswith(f"EOP total {p} ")]
+    pivot_data = {"City": df["City"]}
+    for prod in products:
+        # Get all EOP total columns for product and sort by date (extracted from last token)
+        lm_cols = [col for col in df.columns if col.startswith(f"EOP total {prod} ")]
         if not lm_cols:
             continue
-        lm_col = lm_cols[0]
-        daily_cols = [col for col in df.columns if col.startswith(f"EOP-{p}-MTD-")]
-        daily_cols_sorted = sorted(daily_cols, key=lambda x: int(x.split("-")[-1]))
-        if len(daily_cols_sorted) < 2:
+        lm_cols_sorted = sorted(lm_cols, key=lambda x: pd.to_datetime(x.split()[-1], errors="coerce"))
+        if len(lm_cols_sorted) < 2:
             continue
-        daily_prev = daily_cols_sorted[-2]
-        daily_latest = daily_cols_sorted[-1]
-        df[f"{p}_last_month"] = df[lm_col]
-        df[f"{p}_daily_latest"] = df[daily_latest]
-        df[f"{p}_daily_prev"] = df[daily_prev]
-        df[f"{p}_daily_growth"] = df[f"{p}_daily_latest"] - df[f"{p}_daily_prev"]
-        df[f"{p}_growth_vs_month_end"] = df[f"{p}_daily_latest"] - df[f"{p}_last_month"]
-    cols = ["City"]
-    for p in products:
-        cols.extend([
-            f"{p}_last_month", 
-            f"{p}_daily_latest", 
-            f"{p}_daily_prev", 
-            f"{p}_daily_growth", 
-            f"{p}_growth_vs_month_end"
-        ])
-    pivot = df[cols].groupby("City").sum().reset_index()
-    total = pivot.select_dtypes(include="number").sum()
+        # Change: now using second last column for last month EOP total
+        lm_orig = lm_cols_sorted[-2]
+        lm_date = lm_orig.split()[-1]
+        lm_new = f"{prod}_{lm_date}"
+        pivot_data[lm_new] = df[lm_orig]
+        
+        daily_cols = [col for col in df.columns if col.startswith(f"EOP-{prod}-MTD-")]
+        daily_sorted = sorted(daily_cols, key=lambda x: int(x.split("-")[-1]))
+        if len(daily_sorted) < 2:
+            continue
+        daily_prev = daily_sorted[-2]
+        daily_latest = daily_sorted[-1]
+        daily_prev_new = f"{prod}_{daily_prev}"
+        daily_latest_new = f"{prod}_{daily_latest}"
+        pivot_data[daily_prev_new] = df[daily_prev]
+        pivot_data[daily_latest_new] = df[daily_latest]
+        
+        pivot_data[f"{prod}_DailyGrowth"] = df[daily_latest] - df[daily_prev]
+        pivot_data[f"{prod}_GrowthVsME"] = df[daily_latest] - df[lm_orig]
+    
+    pivot_df = pd.DataFrame(pivot_data)
+    pivot_df = pivot_df.groupby("City", as_index=False).sum()
+    num_cols = pivot_df.select_dtypes(include="number").columns
+    pivot_df[num_cols] = pivot_df[num_cols].round().astype(int)
+    total = pivot_df[num_cols].sum()
     total["City"] = "Total"
-    pivot = pd.concat([pivot, pd.DataFrame([total])], ignore_index=True)
-    return pivot
+    pivot_df = pd.concat([pivot_df, pd.DataFrame([total])], ignore_index=True)
+    return pivot_df
 
-productwise_pivot = create_productwise_pivot(df_updated)
+product_pivot = create_product_pivot(df_updated)
