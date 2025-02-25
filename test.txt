@@ -1,23 +1,14 @@
 import pandas as pd
 
-new_cols = [col for col in eop_df.columns if col not in df_updated.columns]
-for col in new_cols:
-    df_updated[col] = pd.NA
+def create_top10_vs_yesterday_pivots(df):
+    df["Sum of Growth vs Yesterday"] = df.filter(like="v/s Yesterday").sum(axis=1)
+    grouped = df.groupby(["CUST_NAME", "TL", "RM", "City"], as_index=False)["Sum of Growth vs Yesterday"].sum()
+    top10_gainers = grouped.nlargest(10, "Sum of Growth vs Yesterday")
+    top10_losers = grouped.nsmallest(10, "Sum of Growth vs Yesterday")
+    total_gainers = top10_gainers["Sum of Growth vs Yesterday"].sum()
+    total_losers = top10_losers["Sum of Growth vs Yesterday"].sum()
+    top10_gainers.loc["Grand Total"] = ["", "", "", "", total_gainers]
+    top10_losers.loc["Grand Total"] = ["", "", "", "", total_losers]
+    return top10_gainers, top10_losers
 
-df_updated.set_index('CUST_ID.1', inplace=True)
-eop_df.set_index('CUST_ID.1', inplace=True)
-
-common_cols = [col for col in df_updated.columns if col in eop_df.columns]
-df_updated.update(eop_df[common_cols])
-
-new_cust_ids = eop_df.index.difference(df_updated.index)
-df_new_customers = eop_df.loc[new_cust_ids]
-
-for col in df_updated.columns:
-    if col not in df_new_customers.columns:
-        df_new_customers[col] = pd.NA
-
-df_new_customers = df_new_customers[df_updated.columns]
-df_updated = pd.concat([df_updated, df_new_customers], sort=False)
-
-df_updated.reset_index(inplace=True)
+pivot_gainers, pivot_losers = create_top10_vs_yesterday_pivots(df_updated)
