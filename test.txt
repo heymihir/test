@@ -1,1 +1,23 @@
-test
+import pandas as pd
+
+new_cols = [col for col in eop_df.columns if col not in df_updated.columns]
+for col in new_cols:
+    df_updated[col] = pd.NA
+
+df_updated.set_index('CUST_ID.1', inplace=True)
+eop_df.set_index('CUST_ID.1', inplace=True)
+
+common_cols = [col for col in df_updated.columns if col in eop_df.columns]
+df_updated.update(eop_df[common_cols])
+
+new_cust_ids = eop_df.index.difference(df_updated.index)
+df_new_customers = eop_df.loc[new_cust_ids]
+
+for col in df_updated.columns:
+    if col not in df_new_customers.columns:
+        df_new_customers[col] = pd.NA
+
+df_new_customers = df_new_customers[df_updated.columns]
+df_updated = pd.concat([df_updated, df_new_customers], sort=False)
+
+df_updated.reset_index(inplace=True)
