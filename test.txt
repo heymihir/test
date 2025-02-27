@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
+import math
 
-# Sample DataFrame (replace with your actual pivot_1)
 data = {
     'City': ['New York', 'Los Angeles', 'banglore total', 'Chicago', 'Chennai total'],
     'TL': [10, 20, 30, 40, 50],
@@ -16,82 +16,125 @@ data = {
     'Extra7': [9, 8, 7, 6, 5],
     'Extra8': [4, 3, 2, 1, 0]
 }
-df = pd.DataFrame(data)
-orig_cols = list(df.columns)
+pivot_1 = pd.DataFrame(data)
+
+orig_cols = list(pivot_1.columns)
 n_orig = len(orig_cols)
 
-def map_col_idx(orig_idx):
-    if orig_idx < 2:
-        return orig_idx
-    return orig_idx + (orig_idx - 2) // 6
+def get_new_col_index(orig_index):
+    if orig_index < 2:
+        return orig_index
+    shift = (orig_index - 2) // 6
+    return orig_index + shift
 
-n_insert = 0 if n_orig <= 2 else ((n_orig - 2 - 1) // 6 + 1)
-final_cols = n_orig + n_insert
-groups = ['CUA', 'EEFC', 'TMD', 'ASSTES']
-group_span, gap = 6, 1
+n_inserted = 0 if n_orig <= 2 else ((n_orig - 2 - 1) // 6 + 1)
+final_n_cols = n_orig + n_inserted
+
+group_labels = ['CUA', 'EEFC', 'TMD', 'ASSTES']
+group_width = 6
+group_gap = 1
 
 with pd.ExcelWriter('formatted_pivot.xlsx', engine='xlsxwriter') as writer:
-    start_row = 2
-    df.to_excel(writer, index=False, sheet_name='Sheet1', startrow=start_row, header=False)
-    wb = writer.book
-    ws = writer.sheets['Sheet1']
+    start_data_row = 2
+    pivot_1.to_excel(writer, index=False, sheet_name='Sheet1', startrow=start_data_row, header=False)
+    workbook  = writer.book
+    worksheet = writer.sheets['Sheet1']
 
     border = 1
 
-    top_format = wb.add_format({
-        'bold': True, 'font_name': 'Calibri', 'align': 'center', 'valign': 'vcenter',
-        'bg_color': '#D90019', 'font_color': '#FFFFFF', 'border': border
-    })
-    header_fmt = wb.add_format({
-        'bold': True, 'font_name': 'Calibri', 'align': 'center', 'valign': 'vcenter',
-        'bg_color': '#4A4A4A', 'font_color': '#FFFFFF', 'border': border
-    })
-    cell_fmt = wb.add_format({'font_name': 'Calibri', 'font_color': '#101820', 'border': border})
-    neg_fmt = wb.add_format({'font_name': 'Calibri', 'font_color': '#DC143C', 'border': border})
-    total_fmt = wb.add_format({
-        'bold': True, 'font_name': 'Calibri', 'bg_color': '#D1D3D4', 'font_color': '#101820', 'border': border
+    top_merge_format = workbook.add_format({
+        'bold': True,
+        'font_name': 'Calibri',
+        'align': 'center',
+        'valign': 'vcenter',
+        'bg_color': '#D90019',
+        'font_color': '#FFFFFF',
+        'border': border
     })
 
-    ws.write_blank(0, 0, None, top_format)
-    ws.write_blank(0, 1, None, top_format)
-    for i, label in enumerate(groups):
-        start_col = 2 + i * (group_span + gap)
-        ws.merge_range(0, start_col, 0, start_col + group_span - 1, label, top_format)
-        ws.write_blank(0, start_col + group_span, None, top_format)
+    header_format = workbook.add_format({
+        'bold': True,
+        'font_name': 'Calibri',
+        'align': 'center',
+        'valign': 'vcenter',
+        'bg_color': '#4A4A4A',
+        'font_color': '#FFFFFF',
+        'border': border
+    })
 
-    for orig_idx, col in enumerate(orig_cols):
-        ws.write(1, map_col_idx(orig_idx), col, header_fmt)
+    data_format = workbook.add_format({
+        'font_name': 'Calibri',
+        'font_color': '#101820',
+        'border': border
+    })
 
-    all_new_cols = set(range(final_cols))
-    used_new_cols = {map_col_idx(i) for i in range(n_orig)}
-    blank_cols = all_new_cols - used_new_cols
+    red_font_format = workbook.add_format({
+        'font_name': 'Calibri',
+        'font_color': '#DC143C',
+        'border': border
+    })
+
+    total_row_format = workbook.add_format({
+        'bold': True,
+        'font_name': 'Calibri',
+        'bg_color': '#D1D3D4',
+        'font_color': '#101820',
+        'border': border
+    })
+
+    worksheet.write_blank(0, 0, None, top_merge_format)
+    worksheet.write_blank(0, 1, None, top_merge_format)
+    
+    for i, label in enumerate(group_labels):
+        start_col = 2 + i * (group_width + group_gap)
+        end_col = start_col + group_width - 1
+        worksheet.merge_range(0, start_col, 0, end_col, label, top_merge_format)
+        gap_col = end_col + 1
+        worksheet.write_blank(0, gap_col, None, top_merge_format)
+
+    for orig_idx, col_name in enumerate(orig_cols):
+        new_col = get_new_col_index(orig_idx)
+        worksheet.write(1, new_col, col_name, header_format)
+
+    all_new_cols = set(range(final_n_cols))
+    used_cols = {get_new_col_index(i) for i in range(n_orig)}
+    blank_cols = all_new_cols - used_cols
     for col in blank_cols:
-        ws.write_blank(1, col, None, cell_fmt)
+        worksheet.write_blank(1, col, None, data_format)
 
-    for row_num, row in enumerate(df.itertuples(index=False), start=start_row):
-        row_format = total_fmt if "total" in str(row[0]) else None
-        for orig_idx, value in enumerate(row):
-            new_idx = map_col_idx(orig_idx)
-            fmt = cell_fmt
-            if pd.notna(value) and isinstance(value, (int, float)) and value < 0 and row_format is None:
-                fmt = neg_fmt
-            if row_format is not None:
-                fmt = total_fmt
-            ws.write(row_num, new_idx, value, fmt)
+    for row_num, row in enumerate(pivot_1.itertuples(index=False), start=start_data_row):
+        if "total" in str(row[0]):
+            row_fmt = total_row_format
+        else:
+            row_fmt = None
+
+        for orig_idx, cell_value in enumerate(row):
+            new_col = get_new_col_index(orig_idx)
+            cell_format = data_format
+            if pd.notna(cell_value) and isinstance(cell_value, (int, float)) and cell_value < 0 and row_fmt is None:
+                cell_format = red_font_format
+            if row_fmt is not None:
+                cell_format = total_row_format
+            worksheet.write(row_num, new_col, cell_value, cell_format)
+
         for col in blank_cols:
-            ws.write_blank(row_num, col, None, cell_fmt)
+            worksheet.write_blank(row_num, col, None, data_format)
 
-    for col in range(final_cols):
+    for col in range(final_n_cols):
         header_text = ""
         for orig_idx in range(n_orig):
-            if map_col_idx(orig_idx) == col:
+            if get_new_col_index(orig_idx) == col:
                 header_text = str(orig_cols[orig_idx])
                 break
         max_len = len(header_text)
         for orig_idx in range(n_orig):
-            if map_col_idx(orig_idx) == col:
-                col_data = df.iloc[:, orig_idx].astype(str)
-                max_len = max(max_len, col_data.map(len).max())
-        ws.set_column(col, col, 3 if col in blank_cols else max_len + 2)
+            if get_new_col_index(orig_idx) == col:
+                col_data = pivot_1.iloc[:, orig_idx].astype(str)
+                col_max = col_data.map(len).max()
+                max_len = max(max_len, col_max)
+        if col in blank_cols:
+            worksheet.set_column(col, col, 3)
+        else:
+            worksheet.set_column(col, col, max_len + 2)
 
 print("Excel file 'formatted_pivot.xlsx' has been created.")
