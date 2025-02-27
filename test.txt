@@ -1,38 +1,70 @@
 import pandas as pd
 
-def get_latest_three_avg(cols, prefix):
-    avg_cols = [c for c in cols if c.lower().startswith(prefix)]
-    dates = {c: pd.to_datetime(c[-6:], format="%b-%y", errors="coerce") for c in avg_cols}
-    dates = {c: d for c, d in dates.items() if d is not pd.NaT}
-    sorted_cols = sorted(dates, key=lambda c: dates[c], reverse=True)
-    return sorted_cols[:3]
+# Assume pivot_1 is your existing dataframe
+# For example:
+# pivot_1 = pd.DataFrame({
+#     'City': ['New York', 'Los Angeles', 'Total'],
+#     'TL': [100, 200, 'Total'],
+#     'Value': [50, -30, 20]
+# })
 
-def create_avg_pivot(df):
-    products = ["CUA", "EEFC", "TMD", "ASSETS"]
-    pivot_data = {"Region": df["Region"], "City": df["City"]}
-    order = ["Region", "City"]
-    for prod in products:
-        avg3 = get_latest_three_avg(df.columns, f"avg {prod.lower()}")
-        if len(avg3) < 2:
-            continue
-        # Rename average columns to product_last6 (e.g., "CUA_Jan-25")
-        new_names = [f"{prod}_{col[-6:]}" for col in avg3]
-        for orig, new in zip(avg3, new_names):
-            pivot_data[new] = df[orig]
-        # Growth vs Month End: latest month average minus previous month average
-        growth_col = f"{prod}_Growth_vs_ME"
-        pivot_data[growth_col] = df[avg3[0]] - df[avg3[1]]
-        order.extend(new_names)
-        order.append(growth_col)
-    pivot_df = pd.DataFrame(pivot_data)
-    pivot_df = pivot_df.groupby(["Region", "City"], as_index=False).sum()
-    num_cols = pivot_df.select_dtypes(include="number").columns
-    pivot_df[num_cols] = pivot_df[num_cols].round().astype(int)
-    tot = pivot_df[num_cols].sum()
-    tot["Region"] = "Total"
-    tot["City"] = "Total"
-    pivot_df = pd.concat([pivot_df, pd.DataFrame([tot])], ignore_index=True)
-    pivot_df = pivot_df[order]
-    return pivot_df
+output_file = 'formatted_pivot.xlsx'
 
-avg_pivot = create_avg_pivot(df_updated)
+with pd.ExcelWriter(output_file, engine='xlsxwriter') as writer:
+    # Write the dataframe starting at row 2 (Excel row 2, index 1) without headers
+    pivot_1.to_excel(writer, sheet_name='Sheet1', index=False, startrow=1, header=False)
+    
+    workbook  = writer.book
+    worksheet = writer.sheets['Sheet1']
+
+    # -----------------------------
+    # Create formats
+    # -----------------------------
+    # Header formats
+    header_format_ab = workbook.add_format({'bold': True, 'bg_color': 'yellow'})
+    header_format_others = workbook.add_format({'bold': True, 'bg_color': 'red', 'font_color': 'white'})
+    
+    # Data row negative value format
+    negative_format = workbook.add_format({'font_color': 'red'})
+    
+    # Total rows format (for rows where Column A equals 'total' (case insensitive))
+    total_format = workbook.add_format({'bold': True, 'bg_color': 'blue', 'font_color': 'black'})
+    
+    # -----------------------------
+    # Write header row manually (Excel row 1, index 0)
+    # -----------------------------
+    for col_num, col_name in enumerate(pivot_1.columns):
+        if col_num in [0, 1]:  # Column A and B
+            worksheet.write(0, col_num, col_name, header_format_ab)
+        else:
+            worksheet.write(0, col_num, col_name, header_format_others)
+    
+    # -----------------------------
+    # Apply conditional formatting for negative numbers
+    # -----------------------------
+    # Data starts at row 2 (index 1) and spans the dataframe dimensions.
+    max_row, max_col = pivot_1.shape
+    worksheet.conditional_format(1, 0, max_row, max_col - 1, {
+        'type':     'cell',
+        'criteria': '<',
+        'value':    0,
+        'format':   negative_format
+    })
+
+    # -----------------------------
+    # Apply total row formatting
+    # -----------------------------
+    # Loop through the data rows and if the value in column A is 'total', re-write that row with total_format.
+    for row_idx, row in pivot_1.iterrows():
+        if str(row[pivot_1.columns[0]]).strip().lower() == 'total':
+            # row_idx+1 because data starts on Excel row 2.
+            for col_idx, col_name in enumerate(pivot_1.columns):
+                worksheet.write(row_idx + 1, col_idx, row[col_name], total_format)
+    
+    # -----------------------------
+    # Auto-adjust column widths
+    # -----------------------------
+    for i, col in enumerate(pivot_1.columns):
+        # Compute the maximum length of data in the column and compare with header length
+        column_len = max(pivot_1[col].astype(str).map(len).max(), len(col)) + 2
+        worksheet.set_column(i, i, column_len)
