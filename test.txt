@@ -1,70 +1,88 @@
 import pandas as pd
+import numpy as np
 
-# Assume pivot_1 is your existing dataframe
-# For example:
-# pivot_1 = pd.DataFrame({
-#     'City': ['New York', 'Los Angeles', 'Total'],
-#     'TL': [100, 200, 'Total'],
-#     'Value': [50, -30, 20]
-# })
+# Sample pivot_1 DataFrame for illustration (replace with your own DataFrame)
+# pivot_1 = pd.read_csv('your_data.csv')
 
-output_file = 'formatted_pivot.xlsx'
+# Create a sample DataFrame for demonstration purposes
+data = {
+    'City': ['New York', 'Los Angeles', 'total', 'Chicago'],
+    'TL': [10, 20, 30, 40],
+    'Sales': [100, -50, 200, -300],
+    'Profit': [50, 10, -20, 30]
+}
+pivot_1 = pd.DataFrame(data)
 
-with pd.ExcelWriter(output_file, engine='xlsxwriter') as writer:
-    # Write the dataframe starting at row 2 (Excel row 2, index 1) without headers
-    pivot_1.to_excel(writer, sheet_name='Sheet1', index=False, startrow=1, header=False)
-    
+# Define an Excel writer using XlsxWriter as the engine.
+with pd.ExcelWriter('formatted_pivot.xlsx', engine='xlsxwriter') as writer:
+    pivot_1.to_excel(writer, index=False, sheet_name='Sheet1', startrow=1, header=False)
     workbook  = writer.book
     worksheet = writer.sheets['Sheet1']
 
-    # -----------------------------
-    # Create formats
-    # -----------------------------
-    # Header formats
-    header_format_ab = workbook.add_format({'bold': True, 'bg_color': 'yellow'})
-    header_format_others = workbook.add_format({'bold': True, 'bg_color': 'red', 'font_color': 'white'})
-    
-    # Data row negative value format
-    negative_format = workbook.add_format({'font_color': 'red'})
-    
-    # Total rows format (for rows where Column A equals 'total' (case insensitive))
-    total_format = workbook.add_format({'bold': True, 'bg_color': 'blue', 'font_color': 'black'})
-    
-    # -----------------------------
-    # Write header row manually (Excel row 1, index 0)
-    # -----------------------------
-    for col_num, col_name in enumerate(pivot_1.columns):
-        if col_num in [0, 1]:  # Column A and B
-            worksheet.write(0, col_num, col_name, header_format_ab)
-        else:
-            worksheet.write(0, col_num, col_name, header_format_others)
-    
-    # -----------------------------
-    # Apply conditional formatting for negative numbers
-    # -----------------------------
-    # Data starts at row 2 (index 1) and spans the dataframe dimensions.
-    max_row, max_col = pivot_1.shape
-    worksheet.conditional_format(1, 0, max_row, max_col - 1, {
-        'type':     'cell',
-        'criteria': '<',
-        'value':    0,
-        'format':   negative_format
+    # Define formats
+    header_format_a_b = workbook.add_format({
+        'bold': True,
+        'bg_color': 'yellow',
+        'font_name': 'Calibri'
+    })
+    header_format_other = workbook.add_format({
+        'bold': True,
+        'bg_color': 'red',
+        'font_color': 'white',
+        'font_name': 'Calibri'
+    })
+    data_format = workbook.add_format({
+        'font_name': 'Calibri'
+    })
+    red_font_format = workbook.add_format({
+        'font_color': 'red',
+        'font_name': 'Calibri'
+    })
+    total_row_format = workbook.add_format({
+        'bold': True,
+        'bg_color': 'blue',
+        'font_color': 'black',
+        'font_name': 'Calibri'
     })
 
-    # -----------------------------
-    # Apply total row formatting
-    # -----------------------------
-    # Loop through the data rows and if the value in column A is 'total', re-write that row with total_format.
-    for row_idx, row in pivot_1.iterrows():
-        if str(row[pivot_1.columns[0]]).strip().lower() == 'total':
-            # row_idx+1 because data starts on Excel row 2.
-            for col_idx, col_name in enumerate(pivot_1.columns):
-                worksheet.write(row_idx + 1, col_idx, row[col_name], total_format)
-    
-    # -----------------------------
-    # Auto-adjust column widths
-    # -----------------------------
+    # Write header row (Row 1)
+    for col_num, value in enumerate(pivot_1.columns.values):
+        if col_num < 2:  # Columns A and B (City and TL)
+            fmt = header_format_a_b
+        else:
+            fmt = header_format_other
+        worksheet.write(0, col_num, value, fmt)
+
+    # Write data rows with specific formatting
+    # Start at row 2 in the Excel sheet since row 1 is the header
+    for row_num, row in enumerate(pivot_1.itertuples(index=False), start=1):
+        # Check if 'City' column contains "total"
+        if str(row[0]).lower() == "total":
+            row_fmt = total_row_format
+        else:
+            row_fmt = None  # No overall row format
+
+        for col_num, cell_value in enumerate(row):
+            cell_format = data_format  # Default format for data cells
+
+            # Apply red font if the cell is numeric, negative, and not a total row
+            if pd.notna(cell_value) and isinstance(cell_value, (int, float)) and cell_value < 0 and row_fmt is None:
+                cell_format = red_font_format
+
+            # If the entire row is a total row, use total_row_format
+            if row_fmt is not None:
+                cell_format = total_row_format
+
+            worksheet.write(row_num, col_num, cell_value, cell_format)
+
+    # Adjust column widths to fit the longest text in each column
     for i, col in enumerate(pivot_1.columns):
-        # Compute the maximum length of data in the column and compare with header length
-        column_len = max(pivot_1[col].astype(str).map(len).max(), len(col)) + 2
-        worksheet.set_column(i, i, column_len)
+        # Find the maximum length among the header and data in the column
+        header_len = len(str(col))
+        column_data = pivot_1[col].astype(str)
+        max_data_len = column_data.map(len).max() if not column_data.empty else 0
+        max_len = max(header_len, max_data_len)
+        # Add a little extra space for readability
+        worksheet.set_column(i, i, max_len + 2)
+
+print("Excel file 'formatted_pivot.xlsx' has been created.")
