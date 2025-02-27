@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 
+# Sample data for demonstration; replace with your actual DataFrame
 data = {
     'City': ['New York', 'Los Angeles', 'banglore total', 'Chicago', 'Chennai total'],
     'TL': [10, 20, 30, 40, 50],
@@ -15,61 +16,62 @@ data = {
     'Extra7': [9, 8, 7, 6, 5],
     'Extra8': [4, 3, 2, 1, 0]
 }
-df = pd.DataFrame(data)
+pivot_1 = pd.DataFrame(data)
 
-original_columns = list(df.columns)
-num_original_cols = len(original_columns)
+original_columns = list(pivot_1.columns)
+num_original_columns = len(original_columns)
 
-def adjust_column_index(index):
-    if index < 2:
-        return index
-    shift = (index - 2) // 6
-    return index + shift
+def map_new_col_index(orig_index):
+    if orig_index < 2:
+        return orig_index
+    shift = (orig_index - 2) // 6
+    return orig_index + shift
 
-extra_columns = 0 if num_original_cols <= 2 else ((num_original_cols - 2 - 1) // 6 + 1)
-total_columns = num_original_cols + extra_columns
+num_inserted_cols = 0 if num_original_columns <= 2 else ((num_original_columns - 2 - 1) // 6 + 1)
+final_num_cols = num_original_columns + num_inserted_cols
 
-group_headers = ['CUA', 'EEFC', 'TMD', 'ASSTES']
-group_size = 6
-gap_size = 1
+merged_headers = ['CUA', 'EEFC', 'TMD', 'ASSTES']
+group_width = 6
+group_gap = 1
 
 with pd.ExcelWriter('formatted_pivot.xlsx', engine='xlsxwriter') as writer:
-    df.to_excel(writer, index=False, sheet_name='Sheet1', startrow=2, header=False)
-    workbook  = writer.book
+    start_data_row = 2
+    pivot_1.to_excel(writer, index=False, sheet_name='Sheet1', startrow=start_data_row, header=False)
+    workbook = writer.book
     worksheet = writer.sheets['Sheet1']
 
-    border = 1
+    cell_border = 1
 
-    merged_header_format = workbook.add_format({
+    top_merge_format = workbook.add_format({
         'bold': True,
         'font_name': 'Calibri',
         'align': 'center',
         'valign': 'vcenter',
         'bg_color': '#D90019',
         'font_color': '#FFFFFF',
-        'border': border
+        'border': cell_border
     })
 
-    column_header_format = workbook.add_format({
+    header_format = workbook.add_format({
         'bold': True,
         'font_name': 'Calibri',
         'align': 'center',
         'valign': 'vcenter',
         'bg_color': '#4A4A4A',
         'font_color': '#FFFFFF',
-        'border': border
+        'border': cell_border
     })
 
-    data_format = workbook.add_format({
+    cell_format = workbook.add_format({
         'font_name': 'Calibri',
         'font_color': '#101820',
-        'border': border
+        'border': cell_border
     })
 
-    negative_number_format = workbook.add_format({
+    negative_format = workbook.add_format({
         'font_name': 'Calibri',
         'font_color': '#DC143C',
-        'border': border
+        'border': cell_border
     })
 
     total_row_format = workbook.add_format({
@@ -77,66 +79,57 @@ with pd.ExcelWriter('formatted_pivot.xlsx', engine='xlsxwriter') as writer:
         'font_name': 'Calibri',
         'bg_color': '#D1D3D4',
         'font_color': '#101820',
-        'border': border
+        'border': cell_border
     })
 
-    worksheet.write_blank(0, 0, None, merged_header_format)
-    worksheet.write_blank(0, 1, None, merged_header_format)
+    worksheet.write_blank(0, 0, None, top_merge_format)
+    worksheet.write_blank(0, 1, None, top_merge_format)
+    
+    for i, label in enumerate(merged_headers):
+        start_col = 2 + i * (group_width + group_gap)
+        end_col = start_col + group_width - 1
+        worksheet.merge_range(0, start_col, 0, end_col, label, top_merge_format)
+        gap_col = end_col + 1
+        worksheet.write_blank(0, gap_col, None, top_merge_format)
 
-    for i, header in enumerate(group_headers):
-        start_col = 2 + i * (group_size + gap_size)
-        end_col = start_col + group_size - 1
-        worksheet.merge_range(0, start_col, 0, end_col, header, merged_header_format)
-        worksheet.write_blank(0, end_col + 1, None, merged_header_format)
+    for orig_idx, col_name in enumerate(original_columns):
+        new_col = map_new_col_index(orig_idx)
+        worksheet.write(1, new_col, col_name, header_format)
 
-    for original_index, column_name in enumerate(original_columns):
-        new_column_index = adjust_column_index(original_index)
-        worksheet.write(1, new_column_index, column_name, column_header_format)
+    all_new_cols = set(range(final_num_cols))
+    used_cols = {map_new_col_index(i) for i in range(num_original_columns)}
+    blank_cols = all_new_cols - used_cols
+    for col in blank_cols:
+        worksheet.write_blank(1, col, None, cell_format)
 
-    all_columns = set(range(total_columns))
-    used_columns = {adjust_column_index(i) for i in range(num_original_cols)}
-    blank_columns = all_columns - used_columns
+    for row_num, row in enumerate(pivot_1.itertuples(index=False), start=start_data_row):
+        row_is_total = "total" in str(row[0])
+        row_format = total_row_format if row_is_total else None
+        for orig_idx, cell_value in enumerate(row):
+            new_col = map_new_col_index(orig_idx)
+            current_format = cell_format
+            if pd.notna(cell_value) and isinstance(cell_value, (int, float)) and cell_value < 0 and row_format is None:
+                current_format = negative_format
+            if row_format is not None:
+                current_format = total_row_format
+            worksheet.write(row_num, new_col, cell_value, current_format)
+        for col in blank_cols:
+            worksheet.write_blank(row_num, col, None, cell_format)
 
-    for column in blank_columns:
-        worksheet.write_blank(1, column, None, data_format)
-
-    for row_index, row in enumerate(df.itertuples(index=False), start=2):
-        is_total_row = "total" in str(row[0])
-
-        for original_index, cell_value in enumerate(row):
-            new_column_index = adjust_column_index(original_index)
-            cell_format = data_format
-
-            if pd.notna(cell_value) and isinstance(cell_value, (int, float)) and cell_value < 0 and not is_total_row:
-                cell_format = negative_number_format
-
-            if is_total_row:
-                cell_format = total_row_format
-
-            worksheet.write(row_index, new_column_index, cell_value, cell_format)
-
-        for column in blank_columns:
-            worksheet.write_blank(row_index, column, None, data_format)
-
-    for column in range(total_columns):
-        column_name = ""
-
-        for original_index in range(num_original_cols):
-            if adjust_column_index(original_index) == column:
-                column_name = str(original_columns[original_index])
+    for col in range(final_num_cols):
+        header_text = ""
+        for orig_idx in range(num_original_columns):
+            if map_new_col_index(orig_idx) == col:
+                header_text = str(original_columns[orig_idx])
                 break
-
-        max_length = len(column_name)
-
-        for original_index in range(num_original_cols):
-            if adjust_column_index(original_index) == column:
-                col_data = df.iloc[:, original_index].astype(str)
-                col_max_length = col_data.map(len).max()
-                max_length = max(max_length, col_max_length)
-
-        if column in blank_columns:
-            worksheet.set_column(column, column, 3)
+        max_len = len(header_text)
+        for orig_idx in range(num_original_columns):
+            if map_new_col_index(orig_idx) == col:
+                col_data = pivot_1.iloc[:, orig_idx].astype(str)
+                max_len = max(max_len, col_data.map(len).max())
+        if col in blank_cols:
+            worksheet.set_column(col, col, 3)
         else:
-            worksheet.set_column(column, column, max_length + 2)
+            worksheet.set_column(col, col, max_len + 2)
 
 print("Excel file 'formatted_pivot.xlsx' has been created.")
