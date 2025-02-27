@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-# Sample pivot_1 DataFrame for illustration (replace with your own DataFrame)
+# Sample pivot_1 DataFrame for illustration (replace with your actual DataFrame)
 data = {
     'City': ['New York', 'Los Angeles', 'banglore total', 'Chicago', 'Chennai total'],
     'TL': [10, 20, 30, 40, 50],
@@ -16,30 +16,36 @@ with pd.ExcelWriter('formatted_pivot.xlsx', engine='xlsxwriter') as writer:
     workbook  = writer.book
     worksheet = writer.sheets['Sheet1']
 
-    # Define formats
+    # Define formats with borders
     header_format_a_b = workbook.add_format({
         'bold': True,
-        'bg_color': 'yellow',
-        'font_name': 'Calibri'
+        'bg_color': '#FFD700',  # Gold
+        'font_color': '#000000',  # Black
+        'font_name': 'Calibri',
+        'border': 1
     })
     header_format_other = workbook.add_format({
         'bold': True,
-        'bg_color': 'red',
-        'font_color': 'white',
-        'font_name': 'Calibri'
+        'bg_color': '#D72638',  # Crimson Red
+        'font_color': '#FFFFFF',  # White
+        'font_name': 'Calibri',
+        'border': 1
     })
     data_format = workbook.add_format({
-        'font_name': 'Calibri'
+        'font_name': 'Calibri',
+        'border': 1
     })
     red_font_format = workbook.add_format({
-        'font_color': 'red',
-        'font_name': 'Calibri'
+        'font_color': '#D72638',  # Crimson Red for negatives
+        'font_name': 'Calibri',
+        'border': 1
     })
     total_row_format = workbook.add_format({
         'bold': True,
-        'bg_color': 'blue',
-        'font_color': 'black',
-        'font_name': 'Calibri'
+        'bg_color': '#0077B6',  # Deep Blue
+        'font_color': '#FFFFFF',  # White
+        'font_name': 'Calibri',
+        'border': 1
     })
 
     # Write header row (Row 1)
@@ -56,20 +62,20 @@ with pd.ExcelWriter('formatted_pivot.xlsx', engine='xlsxwriter') as writer:
             row_fmt = None
 
         for col_num, cell_value in enumerate(row):
-            # Default cell format
+            # Default cell format is data_format
             cell_format = data_format
 
-            # Apply red font for negative numbers if not a total row
+            # For numeric cells with negative value (if not a total row), apply red_font_format
             if pd.notna(cell_value) and isinstance(cell_value, (int, float)) and cell_value < 0 and row_fmt is None:
                 cell_format = red_font_format
 
-            # If the row is a total row, override with total_row_format
+            # If this row qualifies as a total row, override with total_row_format
             if row_fmt is not None:
                 cell_format = total_row_format
 
             worksheet.write(row_num, col_num, cell_value, cell_format)
 
-    # Adjust column widths to fit the longest text in each column
+    # Auto-adjust column widths to fit the longest text in each column
     for i, col in enumerate(pivot_1.columns):
         header_len = len(str(col))
         column_data = pivot_1[col].astype(str)
