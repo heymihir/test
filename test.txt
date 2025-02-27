@@ -3,13 +3,14 @@ import numpy as np
 
 # Sample pivot_1 DataFrame for illustration (replace with your own DataFrame)
 data = {
-    'City': ['New York', 'Los Angeles', 'total', 'Chicago'],
-    'TL': [10, 20, 30, 40],
-    'Sales': [100, -50, 200, -300],
-    'Profit': [50, 10, -20, 30]
+    'City': ['New York', 'Los Angeles', 'banglore total', 'Chicago', 'Chennai total'],
+    'TL': [10, 20, 30, 40, 50],
+    'Sales': [100, -50, 200, -300, 150],
+    'Profit': [50, 10, -20, 30, -5]
 }
 pivot_1 = pd.DataFrame(data)
 
+# Define an Excel writer using XlsxWriter as the engine.
 with pd.ExcelWriter('formatted_pivot.xlsx', engine='xlsxwriter') as writer:
     pivot_1.to_excel(writer, index=False, sheet_name='Sheet1', startrow=1, header=False)
     workbook  = writer.book
@@ -43,34 +44,32 @@ with pd.ExcelWriter('formatted_pivot.xlsx', engine='xlsxwriter') as writer:
 
     # Write header row (Row 1)
     for col_num, value in enumerate(pivot_1.columns.values):
-        if col_num < 2:  # Columns A and B (City and TL)
-            fmt = header_format_a_b
-        else:
-            fmt = header_format_other
+        fmt = header_format_a_b if col_num < 2 else header_format_other
         worksheet.write(0, col_num, value, fmt)
 
-    # Write data rows with specific formatting
-    # Data rows start from row index 1 (i.e. Excel row 2)
+    # Write data rows with specific formatting (starting from row 2)
     for row_num, row in enumerate(pivot_1.itertuples(index=False), start=1):
-        # Determine if the row is a total row.
-        # We use .strip() to remove any extra spaces and check equality exactly.
-        is_total = isinstance(row[0], str) and row[0].strip() == "total"
-        
+        # Check if the first column contains "total"
+        if "total" in str(row[0]):
+            row_fmt = total_row_format
+        else:
+            row_fmt = None
+
         for col_num, cell_value in enumerate(row):
-            # Start with default data format
+            # Default cell format
             cell_format = data_format
 
-            # If numeric and negative (and not a total row), apply red font
-            if pd.notna(cell_value) and isinstance(cell_value, (int, float)) and cell_value < 0 and not is_total:
+            # Apply red font for negative numbers if not a total row
+            if pd.notna(cell_value) and isinstance(cell_value, (int, float)) and cell_value < 0 and row_fmt is None:
                 cell_format = red_font_format
 
-            # If the row is a total row, override to use total row format for every cell
-            if is_total:
+            # If the row is a total row, override with total_row_format
+            if row_fmt is not None:
                 cell_format = total_row_format
 
             worksheet.write(row_num, col_num, cell_value, cell_format)
 
-    # Adjust column widths based on the longest content in each column
+    # Adjust column widths to fit the longest text in each column
     for i, col in enumerate(pivot_1.columns):
         header_len = len(str(col))
         column_data = pivot_1[col].astype(str)
