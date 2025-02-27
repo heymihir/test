@@ -16,36 +16,41 @@ with pd.ExcelWriter('formatted_pivot.xlsx', engine='xlsxwriter') as writer:
     workbook  = writer.book
     worksheet = writer.sheets['Sheet1']
 
-    # Define formats with borders
+    # Define formats with borders (using actual color names)
     header_format_a_b = workbook.add_format({
         'bold': True,
-        'bg_color': '#FFD700',  # Gold
-        'font_color': '#000000',  # Black
+        'bg_color': 'gold',
+        'font_color': 'black',
         'font_name': 'Calibri',
-        'border': 1
+        'border': 1,
+        'border_color': 'lightgreen'
     })
     header_format_other = workbook.add_format({
         'bold': True,
-        'bg_color': '#D72638',  # Crimson Red
-        'font_color': '#FFFFFF',  # White
+        'bg_color': 'crimson',
+        'font_color': 'white',
         'font_name': 'Calibri',
-        'border': 1
+        'border': 1,
+        'border_color': 'lightgreen'
     })
     data_format = workbook.add_format({
         'font_name': 'Calibri',
-        'border': 1
+        'border': 1,
+        'border_color': 'lightgreen'
     })
     red_font_format = workbook.add_format({
-        'font_color': '#D72638',  # Crimson Red for negatives
+        'font_color': 'crimson',
         'font_name': 'Calibri',
-        'border': 1
+        'border': 1,
+        'border_color': 'lightgreen'
     })
     total_row_format = workbook.add_format({
         'bold': True,
-        'bg_color': '#0077B6',  # Deep Blue
-        'font_color': '#FFFFFF',  # White
+        'bg_color': 'blue',
+        'font_color': 'white',
         'font_name': 'Calibri',
-        'border': 1
+        'border': 1,
+        'border_color': 'lightgreen'
     })
 
     # Write header row (Row 1)
@@ -55,7 +60,7 @@ with pd.ExcelWriter('formatted_pivot.xlsx', engine='xlsxwriter') as writer:
 
     # Write data rows with specific formatting (starting from row 2)
     for row_num, row in enumerate(pivot_1.itertuples(index=False), start=1):
-        # Check if the first column contains "total"
+        # Check if the first column (City) contains "total"
         if "total" in str(row[0]):
             row_fmt = total_row_format
         else:
@@ -83,4 +88,4 @@ with pd.ExcelWriter('formatted_pivot.xlsx', engine='xlsxwriter') as writer:
         max_len = max(header_len, max_data_len)
         worksheet.set_column(i, i, max_len + 2)
 
-print("Excel file 'formatted_pivot.xlsx' has been created.")
+print("Excel file 'formatted_pivot.xlsx' has been created with the new color palette and borders.")
