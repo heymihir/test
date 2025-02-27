@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-# Sample pivot_1 DataFrame for illustration (replace with your actual DataFrame)
+# Sample pivot_1 DataFrame for illustration (replace with your own DataFrame)
 data = {
     'City': ['New York', 'Los Angeles', 'banglore total', 'Chicago', 'Chennai total'],
     'TL': [10, 20, 30, 40, 50],
@@ -16,41 +16,35 @@ with pd.ExcelWriter('formatted_pivot.xlsx', engine='xlsxwriter') as writer:
     workbook  = writer.book
     worksheet = writer.sheets['Sheet1']
 
-    # Define formats with borders (using actual color names)
+    # Define formats with a lighter color palette and borders
     header_format_a_b = workbook.add_format({
         'bold': True,
-        'bg_color': 'gold',
-        'font_color': 'black',
+        'bg_color': 'Light Yellow',
         'font_name': 'Calibri',
-        'border': 1,
-        'border_color': 'lightgreen'
+        'border': 1
     })
     header_format_other = workbook.add_format({
         'bold': True,
-        'bg_color': 'crimson',
+        'bg_color': 'Light Steel Blue',
         'font_color': 'white',
         'font_name': 'Calibri',
-        'border': 1,
-        'border_color': 'lightgreen'
+        'border': 1
     })
     data_format = workbook.add_format({
         'font_name': 'Calibri',
-        'border': 1,
-        'border_color': 'lightgreen'
+        'border': 1
     })
     red_font_format = workbook.add_format({
-        'font_color': 'crimson',
+        'font_color': 'Red',
         'font_name': 'Calibri',
-        'border': 1,
-        'border_color': 'lightgreen'
+        'border': 1
     })
     total_row_format = workbook.add_format({
         'bold': True,
-        'bg_color': 'blue',
-        'font_color': 'white',
+        'bg_color': 'Pale Turquoise',
+        'font_color': 'black',
         'font_name': 'Calibri',
-        'border': 1,
-        'border_color': 'lightgreen'
+        'border': 1
     })
 
     # Write header row (Row 1)
@@ -60,27 +54,27 @@ with pd.ExcelWriter('formatted_pivot.xlsx', engine='xlsxwriter') as writer:
 
     # Write data rows with specific formatting (starting from row 2)
     for row_num, row in enumerate(pivot_1.itertuples(index=False), start=1):
-        # Check if the first column (City) contains "total"
+        # Check if the first column contains "total"
         if "total" in str(row[0]):
             row_fmt = total_row_format
         else:
             row_fmt = None
 
         for col_num, cell_value in enumerate(row):
-            # Default cell format is data_format
+            # Default cell format
             cell_format = data_format
 
-            # For numeric cells with negative value (if not a total row), apply red_font_format
+            # Apply red font for negative numbers if not a total row
             if pd.notna(cell_value) and isinstance(cell_value, (int, float)) and cell_value < 0 and row_fmt is None:
                 cell_format = red_font_format
 
-            # If this row qualifies as a total row, override with total_row_format
+            # If the row is a total row, override with total_row_format
             if row_fmt is not None:
                 cell_format = total_row_format
 
             worksheet.write(row_num, col_num, cell_value, cell_format)
 
-    # Auto-adjust column widths to fit the longest text in each column
+    # Adjust column widths to fit the longest text in each column
     for i, col in enumerate(pivot_1.columns):
         header_len = len(str(col))
         column_data = pivot_1[col].astype(str)
@@ -88,4 +82,4 @@ with pd.ExcelWriter('formatted_pivot.xlsx', engine='xlsxwriter') as writer:
         max_len = max(header_len, max_data_len)
         worksheet.set_column(i, i, max_len + 2)
 
-print("Excel file 'formatted_pivot.xlsx' has been created with the new color palette and borders.")
+print("Excel file 'formatted_pivot.xlsx' has been created.")
