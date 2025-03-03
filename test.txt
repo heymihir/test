@@ -1,103 +1,94 @@
-orig_cols = list(eop_pivot.columns)
-num_orig_cols = len(orig_cols)
+sheet_name = 'Sheet2'
+start_row = 2
+num_cols = eop_pivot.shape[1]
 
-def map_new_index(orig_idx):
-    return orig_idx
-
-num_total_cols = num_orig_cols  # No extra blank columns for this pivot merge
-
-merged_labels = ['CUA', 'EEFC', 'TMD', 'ASSTES']
-
-with pd.ExcelWriter('formatted_eop_pivot.xlsx', engine='xlsxwriter') as writer:
-    start_data_row = 2
-    eop_pivot.to_excel(writer, index=False, sheet_name='Sheet1', startrow=start_data_row, header=False)
+with pd.ExcelWriter('formatted_pivot.xlsx', engine='xlsxwriter') as writer:
+    eop_pivot.to_excel(writer, index=False, sheet_name=sheet_name, startrow=start_row, header=False)
     workbook = writer.book
-    worksheet = writer.sheets['Sheet1']
+    worksheet = writer.sheets[sheet_name]
 
-    border_val = 1
+    border = 1
 
-    merge_top_format = workbook.add_format({
+    fmt_top_merge = workbook.add_format({
         'bold': True,
         'font_name': 'Calibri',
         'align': 'center',
         'valign': 'vcenter',
         'bg_color': '#D90019',
         'font_color': '#FFFFFF',
-        'border': border_val
+        'border': border
     })
-
-    header_format = workbook.add_format({
+    fmt_header = workbook.add_format({
         'bold': True,
         'font_name': 'Calibri',
         'align': 'center',
         'valign': 'vcenter',
         'bg_color': '#4A4A4A',
         'font_color': '#FFFFFF',
-        'border': border_val
+        'border': border
     })
-
-    cell_format = workbook.add_format({
+    fmt_cell = workbook.add_format({
         'font_name': 'Calibri',
         'font_color': '#101820',
-        'border': border_val
+        'border': border
     })
-
-    number_format = workbook.add_format({
-        'font_name': 'Calibri',
-        'font_color': '#101820',
-        'border': border_val,
-        'num_format': '#,##0'
-    })
-
-    negative_format = workbook.add_format({
+    fmt_negative = workbook.add_format({
         'font_name': 'Calibri',
         'font_color': '#DC143C',
-        'border': border_val,
+        'border': border,
         'num_format': '#,##0'
     })
-
-    total_format = workbook.add_format({
+    fmt_number = workbook.add_format({
+        'font_name': 'Calibri',
+        'font_color': '#101820',
+        'border': border,
+        'num_format': '#,##0'
+    })
+    fmt_total = workbook.add_format({
         'bold': True,
         'font_name': 'Calibri',
         'bg_color': '#D1D3D4',
         'font_color': '#101820',
-        'border': border_val,
+        'border': border,
         'num_format': '#,##0'
     })
 
-    # Merge top row: starting from column B (index 1), every 4 cells are merged with a label
-    for i, label in enumerate(merged_labels):
-        start_col = 1 + i * 4
-        end_col = start_col + 3 if (start_col + 3) < num_total_cols else num_total_cols - 1
-        if start_col < num_total_cols:
-            worksheet.merge_range(0, start_col, 0, end_col, label, merge_top_format)
-    worksheet.write_blank(0, 0, None, merge_top_format)
+    group_labels = ['CUA', 'EEFC', 'TMD', 'ASSTES']
+    group_size = 4
 
-    # Write header row (row 1)
-    for col_idx, col_name in enumerate(orig_cols):
-        worksheet.write(1, col_idx, col_name, header_format)
+    worksheet.write_blank(0, 0, None, fmt_top_merge)
+    for i, label in enumerate(group_labels):
+        start_col = 1 + i * group_size
+        end_col = start_col + group_size - 1
+        if start_col >= num_cols:
+            break
+        if end_col >= num_cols:
+            end_col = num_cols - 1
+        worksheet.merge_range(0, start_col, 0, end_col, label, fmt_top_merge)
 
-    # Write data rows (starting row 2)
-    for row_num, row in enumerate(eop_pivot.itertuples(index=False), start=start_data_row):
-        is_total = str(row[0]).strip().lower() == "total"
-        row_fmt = total_format if is_total else None
-        for col_idx, val in enumerate(row):
-            fmt = cell_format
-            if pd.notna(val) and isinstance(val, (int, float)):
-                if not is_total:
-                    fmt = negative_format if val < 0 else number_format
+    for col in range(num_cols):
+        worksheet.write(1, col, eop_pivot.columns[col], fmt_header)
+
+    for r_idx, row in enumerate(eop_pivot.itertuples(index=False), start=start_row):
+        is_total = "total" in str(row[0]).lower()
+        cell_fmt = fmt_total if is_total else None
+        for c_idx, cell_val in enumerate(row):
+            current_fmt = fmt_cell
+            if pd.notna(cell_val) and isinstance(cell_val, (int, float)):
+                if cell_val < 0 and not is_total:
+                    current_fmt = fmt_negative
                 else:
-                    fmt = total_format
-            if row_fmt is not None:
-                fmt = total_format
-            worksheet.write(row_num, col_idx, val, fmt)
+                    current_fmt = fmt_number
+            if is_total:
+                current_fmt = fmt_total
+            worksheet.write(r_idx, c_idx, cell_val, current_fmt)
 
-    # Adjust column widths
-    for col in range(num_total_cols):
-        header_val = str(orig_cols[col])
-        max_len = len(header_val)
-        col_vals = eop_pivot.iloc[:, col].astype(str)
-        max_len = max(max_len, col_vals.map(len).max())
+    for col in range(num_cols):
+        header_text = str(eop_pivot.columns[col])
+        max_len = len(header_text)
+        for r in range(eop_pivot.shape[0]):
+            cell_text = str(eop_pivot.iloc[r, col])
+            max_len = max(max_len, len(cell_text))
         worksheet.set_column(col, col, max_len + 2)
 
-print("Excel file 'formatted_eop_pivot.xlsx' has been created.")
+print("Excel file 'formatted_pivot.xlsx' has been created.")
