@@ -1,38 +1,5 @@
-import pandas as pd
-import numpy as np
+import re
 
-def upsert_data(base_df: pd.DataFrame, daily_df: pd.DataFrame, key: str) -> pd.DataFrame:
-    # Step 1: Add new columns from daily_df that are not in base_df
-    new_cols = [col for col in daily_df.columns if col not in base_df.columns]
-    for col in new_cols:
-        base_df[col] = np.nan
-
-    # Step 2: Set the index of both dataframes to the key
-    base_df = base_df.set_index(key)
-    daily_df = daily_df.set_index(key)
-
-    # Step 3: Update base_df with the common columns from daily_df
-    common_cols = [col for col in base_df.columns if col in daily_df.columns]
-    base_df.update(daily_df[common_cols])
-
-    # Step 4: Find and append new rows from daily_df (customers not in base_df)
-    new_ids = daily_df.index.difference(base_df.index)
-    new_customers = daily_df.loc[new_ids]
-    
-    # Ensure new_customers has all columns in the base_df
-    for col in base_df.columns:
-        if col not in new_customers.columns:
-            new_customers[col] = np.nan
-    # Align the columns order
-    new_customers = new_customers[base_df.columns]
-    
-    # Concatenate updated base_df with new_customers
-    updated_df = pd.concat([base_df, new_customers], sort=False)
-    
-    # Step 5: Reset the index to convert key back to a column
-    updated_df = updated_df.reset_index()
-    
-    return updated_df
-
-# Example usage:
-# df_updated = upsert_data(df_updated, eop_df_1, 'CUST_ID.1')
+def extract_RM_name(text):
+    match = re.search(r'[-=]\s*(.*?)\s*\(', text)
+    return match.group(1) if match else text
