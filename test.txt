@@ -1,5 +1,165 @@
+import os
+import glob
 import re
+import pandas as pd
+import numpy as np
+from datetime import datetime
 
-def extract_RM_name(text):
-    match = re.search(r'[-=]\s*(.*?)\s*\(', text)
-    return match.group(1) if match else text
+def extract_cmb_date(cmb_filepath):
+    # Example implementation to extract date from the filename.
+    # Adjust the regex and date format as needed.
+    date_str = re.search(r'\d{2}-\w{3}-\d{4}', cmb_filepath).group()
+    return datetime.strptime(date_str, "%d-%b-%Y")
+
+def read_xml_file(cmb_filepath):
+    # Dummy implementation: replace with your actual XML reading logic.
+    # For example, using pd.read_xml if applicable.
+    return pd.DataFrame()  # Placeholder
+
+def extract_RM_name(rm_string):
+    # Clean/extract the RM name from the given string.
+    return rm_string.strip()
+
+def process_cmb_file(cmb_filepath):
+    cmb_date = extract_cmb_date(cmb_filepath)
+    cmb_df = read_xml_file(cmb_filepath)
+    print(f'Reading CMB File : {cmb_filepath}')
+    
+    asset_tracker_files = glob.glob("Assets Trend*.xlsb")
+    pattern = re.compile(r'Assets Trend Tracker\s*-\s*(\d+)(?:st|nd|rd|th)\s+(\w{3})\s+(\d{4})')
+    matched_tracker_file = None
+    print(f'... Finding Asset Tracker pair File ...')
+    
+    for file in asset_tracker_files:
+        m = pattern.search(os.path.basename(file))
+        if m:
+            try:
+                tracker_month = datetime.strptime(m.group(2), "%b").month
+            except Exception:
+                continue
+            if int(m.group(1)) == cmb_date.day and tracker_month == cmb_date.month:
+                matched_tracker_file = file
+                print(f'Matching Asset File Found : {matched_tracker_file}')
+                break
+    
+    if matched_tracker_file:
+        print(f'Reading Asset Tracker file: {matched_tracker_file}...')
+        tracker_df = pd.read_excel(
+            matched_tracker_file, sheet_name="MTD_Deal_level",
+            engine="pyxlsb",
+            usecols=['System Name', 'Customer ID', 'Segment', 'Amount_OS_LCY_Mn', 'Prod_Code']
+        )
+    else:
+        tracker_df = pd.DataFrame(columns=['index', 'cust_id', 'Segment', 'Prod_Code', 'Amount_OS_LCY_Mn'])
+        print('No Matching tracker found ...')
+
+    print('Preparing Tracker Pivot..')
+    tracker_df.rename(columns={tracker_df.columns[1]: 'cust_id'}, inplace=True)
+    tracker_df['cust_id'] = tracker_df['cust_id'].astype(str)
+    tracker_df = tracker_df[(tracker_df['Prod_Code'].isin(['OAV', 'RF'])) & (tracker_df['Segment'].isin(['BB']))]
+    tracker_df = tracker_df.groupby('cust_id')['Amount_OS_LCY_Mn'].sum().reset_index()
+    
+    print('Preparing CMB Pivot...')
+    # Renaming the first column to 'cust_id' and 'AO_NAME' to 'RM'
+    cmb_df = cmb_df.rename(columns={cmb_df.columns[0]: 'cust_id', 'AO_NAME': 'RM'})
+    cmb_df['cust_id'] = cmb_df['cust_id'].astype(str)
+    cmb_df['BALANCE'] = pd.to_numeric(cmb_df['BALANCE'], errors='coerce')
+    cmb_df['BALANCE'] = abs(cmb_df['BALANCE']) / 1000000
+    cmb_df['RM'] = cmb_df['RM'].apply(extract_RM_name)
+    
+    cmb_df = cmb_df.groupby('cust_id').agg({'BALANCE': 'sum', 'RM': 'first'}).reset_index()
+    cmb_df = cmb_df.merge(tracker_df, on='cust_id', how='outer')
+    cmb_df['BALANCE'] = cmb_df['BALANCE'].fillna(0)
+    cmb_df['Amount_OS_LCY_Mn'] = cmb_df['Amount_OS_LCY_Mn'].fillna(0)
+    cmb_df['BALANCE'] = cmb_df['BALANCE'] + cmb_df['Amount_OS_LCY_Mn']
+    cmb_df.drop(columns='Amount_OS_LCY_Mn', inplace=True)
+    
+    display(cmb_df)
+    cmb_file_name = os.path.basename(cmb_filepath)
+    tracker_file_name = os.path.basename(matched_tracker_file) if matched_tracker_file else None
+    
+    return cmb_df.copy(), cmb_date, cmb_file_name, tracker_file_name
+
+# ================================================================
+
+mtd_file_name = "EOP_ASSET_MTD_data.xlsx"  # KEEP TRACK OF THE LAST CMB FILE DATE WHICH WAS RUN
+if not os.path.exists(mtd_file_name):
+    print(f'ASSET MTD FILE NOT FOUND !!!')
+    print(f'CREATING NEW MTD FILE : {mtd_file_name}')
+    empty_df = pd.DataFrame(columns=['cust_id', 'LAST_CMB_FILE_RUN_DATE'])
+    empty_df.to_excel(mtd_file_name, index=False)
+
+eop_df = pd.read_excel(mtd_file_name)
+if 'LAST_CMB_FILE_RUN_DATE' in eop_df.columns and not eop_df['LAST_CMB_FILE_RUN_DATE'].isnull().all():
+    last_run_date = datetime.strptime(eop_df['LAST_CMB_FILE_RUN_DATE'].iloc[0], "%d-%b-%Y")
+    print(f'Last Run File Date : {last_run_date}')
+else:
+    last_run_date = datetime(2025, 1, 1)
+
+# ================================================================
+current_month = 2  # change to other month if needed
+
+cmb_files = glob.glob("CMB_BASE_*")
+new_cmb_files = sorted(
+    [f for f in cmb_files if extract_cmb_date(f).month == current_month 
+     and extract_cmb_date(f) > last_run_date], key=extract_cmb_date
+)
+print(f'New CMB Files Identified : {new_cmb_files}')
+
+print(f'Updating CMB Files... ')
+eop_df.set_index('cust_id', inplace=True)
+eop_df.index = eop_df.index.astype(str)
+
+# ---- Added RM column initialization to eop_df if it doesn't exist ----
+if 'RM' not in eop_df.columns:
+    eop_df['RM'] = np.nan
+
+for cmb_filepath in new_cmb_files:
+    processed_df, file_date, cmb_filename, tracker_filename = process_cmb_file(cmb_filepath)
+    mtd_col = f"EOP-ASSETS-MTD-{file_date.day:02d}"
+
+    print(f'New CMB file : {cmb_filename} paired with Asset Tracker file: {tracker_filename}')
+    
+    if mtd_col not in eop_df.columns:
+        eop_df[mtd_col] = np.nan
+
+    update_series = processed_df.set_index('cust_id')['BALANCE']
+    # ---- Update RM column from processed_df ----
+    rm_series = processed_df.set_index('cust_id')['RM']
+    
+    new_customers = update_series.index.difference(eop_df.index)
+
+    if not new_customers.empty:
+        new_rows = pd.DataFrame(index=new_customers, columns=eop_df.columns)
+        eop_df = pd.concat([eop_df, new_rows])
+    
+    eop_df.loc[update_series.index, mtd_col] = update_series
+    eop_df.loc[rm_series.index, 'RM'] = rm_series  # Merge RM values into eop_df
+
+    if file_date > last_run_date:
+        last_run_date = file_date
+        eop_df['LAST_CMB_FILE_RUN_DATE'] = last_run_date.strftime("%d-%b-%Y")
+
+print(f'last_run_date = {last_run_date}')
+
+mtd_cols = sorted([col for col in eop_df.columns if col.startswith("EOP-ASSETS-MTD-")])
+
+if new_cmb_files:
+    latest_cmb_date = extract_cmb_date(max(new_cmb_files, key=extract_cmb_date))
+    avg_col = f"Avg Assets {latest_cmb_date.strftime('%b-%y')}"
+else:
+    avg_col = f"Avg Assets {datetime.now().strftime('%b-%y')}"
+
+eop_df[avg_col] = eop_df[mtd_cols].mean(axis=1)
+eop_df['LAST_CMB_FILE_RUN_DATE'] = last_run_date.strftime("%d-%b-%Y")
+
+eop_df.reset_index(inplace=True)
+update_columns = ['LAST_CMB_FILE_RUN_DATE']
+# ---- Added 'RM' to the final output columns ----
+eop_df = eop_df[['cust_id'] + mtd_cols + [avg_col] + update_columns + ['RM']]
+
+# Save updated eop_df to file
+tomorrow_path = '.'  # Adjust path if needed
+eop_df[['cust_id', 'LAST_CMB_FILE_RUN_DATE', 'RM']].to_excel(f'{tomorrow_path}/{mtd_file_name}', index=False)
+
+print("Update completed.")
