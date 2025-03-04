@@ -1,94 +1,38 @@
-sheet_name = 'Sheet2'
-start_row = 2
-num_cols = eop_pivot.shape[1]
+import pandas as pd
+import numpy as np
 
-with pd.ExcelWriter('formatted_pivot.xlsx', engine='xlsxwriter') as writer:
-    eop_pivot.to_excel(writer, index=False, sheet_name=sheet_name, startrow=start_row, header=False)
-    workbook = writer.book
-    worksheet = writer.sheets[sheet_name]
+def upsert_data(base_df: pd.DataFrame, daily_df: pd.DataFrame, key: str) -> pd.DataFrame:
+    # Step 1: Add new columns from daily_df that are not in base_df
+    new_cols = [col for col in daily_df.columns if col not in base_df.columns]
+    for col in new_cols:
+        base_df[col] = np.nan
 
-    border = 1
+    # Step 2: Set the index of both dataframes to the key
+    base_df = base_df.set_index(key)
+    daily_df = daily_df.set_index(key)
 
-    fmt_top_merge = workbook.add_format({
-        'bold': True,
-        'font_name': 'Calibri',
-        'align': 'center',
-        'valign': 'vcenter',
-        'bg_color': '#D90019',
-        'font_color': '#FFFFFF',
-        'border': border
-    })
-    fmt_header = workbook.add_format({
-        'bold': True,
-        'font_name': 'Calibri',
-        'align': 'center',
-        'valign': 'vcenter',
-        'bg_color': '#4A4A4A',
-        'font_color': '#FFFFFF',
-        'border': border
-    })
-    fmt_cell = workbook.add_format({
-        'font_name': 'Calibri',
-        'font_color': '#101820',
-        'border': border
-    })
-    fmt_negative = workbook.add_format({
-        'font_name': 'Calibri',
-        'font_color': '#DC143C',
-        'border': border,
-        'num_format': '#,##0'
-    })
-    fmt_number = workbook.add_format({
-        'font_name': 'Calibri',
-        'font_color': '#101820',
-        'border': border,
-        'num_format': '#,##0'
-    })
-    fmt_total = workbook.add_format({
-        'bold': True,
-        'font_name': 'Calibri',
-        'bg_color': '#D1D3D4',
-        'font_color': '#101820',
-        'border': border,
-        'num_format': '#,##0'
-    })
+    # Step 3: Update base_df with the common columns from daily_df
+    common_cols = [col for col in base_df.columns if col in daily_df.columns]
+    base_df.update(daily_df[common_cols])
 
-    group_labels = ['CUA', 'EEFC', 'TMD', 'ASSTES']
-    group_size = 4
+    # Step 4: Find and append new rows from daily_df (customers not in base_df)
+    new_ids = daily_df.index.difference(base_df.index)
+    new_customers = daily_df.loc[new_ids]
+    
+    # Ensure new_customers has all columns in the base_df
+    for col in base_df.columns:
+        if col not in new_customers.columns:
+            new_customers[col] = np.nan
+    # Align the columns order
+    new_customers = new_customers[base_df.columns]
+    
+    # Concatenate updated base_df with new_customers
+    updated_df = pd.concat([base_df, new_customers], sort=False)
+    
+    # Step 5: Reset the index to convert key back to a column
+    updated_df = updated_df.reset_index()
+    
+    return updated_df
 
-    worksheet.write_blank(0, 0, None, fmt_top_merge)
-    for i, label in enumerate(group_labels):
-        start_col = 1 + i * group_size
-        end_col = start_col + group_size - 1
-        if start_col >= num_cols:
-            break
-        if end_col >= num_cols:
-            end_col = num_cols - 1
-        worksheet.merge_range(0, start_col, 0, end_col, label, fmt_top_merge)
-
-    for col in range(num_cols):
-        worksheet.write(1, col, eop_pivot.columns[col], fmt_header)
-
-    for r_idx, row in enumerate(eop_pivot.itertuples(index=False), start=start_row):
-        is_total = "total" in str(row[0]).lower()
-        cell_fmt = fmt_total if is_total else None
-        for c_idx, cell_val in enumerate(row):
-            current_fmt = fmt_cell
-            if pd.notna(cell_val) and isinstance(cell_val, (int, float)):
-                if cell_val < 0 and not is_total:
-                    current_fmt = fmt_negative
-                else:
-                    current_fmt = fmt_number
-            if is_total:
-                current_fmt = fmt_total
-            worksheet.write(r_idx, c_idx, cell_val, current_fmt)
-
-    for col in range(num_cols):
-        header_text = str(eop_pivot.columns[col])
-        max_len = len(header_text)
-        for r in range(eop_pivot.shape[0]):
-            cell_text = str(eop_pivot.iloc[r, col])
-            max_len = max(max_len, len(cell_text))
-        worksheet.set_column(col, col, max_len + 2)
-
-print("Excel file 'formatted_pivot.xlsx' has been created.")
+# Example usage:
+# df_updated = upsert_data(df_updated, eop_df_1, 'CUST_ID.1')
