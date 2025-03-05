@@ -6,15 +6,22 @@ def manage_folders(base_directory):
     daily_balances_dir = base_dir / "daily_balances_files"
     daily_balances_dir.mkdir(parents=True, exist_ok=True)
     tracking_file = daily_balances_dir / "last_run.txt"
+    current = datetime.today().date()
     if tracking_file.exists():
-        last_run_date = datetime.strptime(tracking_file.read_text().strip(), "%Y-%m-%d").date()
-        today_date = last_run_date + timedelta(days=1)
+        last_output = datetime.strptime(tracking_file.read_text().strip(), "%Y-%m-%d").date()
+        if current < last_output:
+            today_date = last_output - timedelta(days=1)
+            tomorrow_date = last_output
+        else:
+            today_date = last_output
+            tomorrow_date = last_output + timedelta(days=1)
+            tracking_file.write_text(tomorrow_date.strftime("%Y-%m-%d"))
     else:
-        today_date = datetime.today().date()
-    tomorrow_date = today_date + timedelta(days=1)
+        today_date = current
+        tomorrow_date = current + timedelta(days=1)
+        tracking_file.write_text(tomorrow_date.strftime("%Y-%m-%d"))
     today_path = daily_balances_dir / today_date.strftime("%Y-%m-%d")
     tomorrow_path = daily_balances_dir / tomorrow_date.strftime("%Y-%m-%d")
     tomorrow_path.mkdir(parents=True, exist_ok=True)
-    tracking_file.write_text(tomorrow_date.strftime("%Y-%m-%d"))
     print(f'created folder: "{tomorrow_path}"')
     return today_path, tomorrow_path
