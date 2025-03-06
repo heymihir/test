@@ -1,38 +1,12 @@
-def create_pivot_1_base_data(df):
+# Format the top (header) row with header_format (which has white font)
+for col_idx, col_name in enumerate(pivot_gainers.columns):
+    worksheet.write(0, col_idx, col_name, header_format)
 
-    def get_latest_two_avg_months(columns, prefix):
-        date_columns = [col for col in columns if col.lower().startswith(prefix)]
-        parsed_dates = {col: pd.to_datetime(col[-6:], format="%b-%y", errors="coerce") for col in date_columns}
-        sorted_cols = sorted(parsed_dates, key=lambda c: parsed_dates[c], reverse=True)
-        print(f"{prefix} columns : {sorted_cols[:2]}")
-        return sorted_cols[:2][::-1]
-
-    def get_latest_two_eop_months(columns, product):
-        eop_columns = [col for col in columns if f"EOP-{product}-MTD-" in col]
-        sorted_cols = sorted(eop_columns, key=lambda c: int(c.split("-")[-1]), reverse=True)
-        print(f"EOP columns {product} : {sorted_cols[:2]}")
-        return sorted_cols[:2]
-
-    base_cols = ["TL", "City"]
-    products = ["CUA", "EEFC", "TMD", "ASSETS"]
-
-    for p in products:
-        avg_cols = get_latest_two_avg_months(df.columns, f"avg {p.lower()}")
-        eop_cols = get_latest_two_eop_months(df.columns, p)
-
-        if len(avg_cols) >= 2:
-            df[f'v/s L.M {p}'] = df[avg_cols[1]] - df[avg_cols[0]]  # Adjusted subtraction order
-            avg_cols.append(f'v/s L.M {p}')
-
-        if len(eop_cols) >= 2:
-            df[f'v/s Yesterday {p}'] = df[eop_cols[0]] - df[eop_cols[1]]
-            eop_cols.append(f'v/s Yesterday {p}')
-
-        # Change: Add the YTD 24 column for the current product if it exists
-        ytd_col = next((col for col in df.columns if col.lower() == f'ytd avg {p.lower()} 24'), None)
-        if ytd_col:
-            base_cols.append(ytd_col)  # Change: Appending YTD column for product p
-
-        base_cols.extend(avg_cols + eop_cols)
-
-    return df[base_cols]
+# Format the data rows, applying total_row_format for the "Grand Total" row
+for row_idx, row in enumerate(pivot_gainers.itertuples(index=False), start=1):
+    if "Grand Total" in str(row[0]):
+        for col_idx, value in enumerate(row):
+            worksheet.write(row_idx, col_idx, value, total_row_format)
+    else:
+        for col_idx, value in enumerate(row):
+            worksheet.write(row_idx, col_idx, value, default_format)
