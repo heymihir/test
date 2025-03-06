@@ -1,27 +1,19 @@
-import re
-
-def create_eop_df(df_updated):
-    products = ["CUA", "TMD", "EEFC"]
+def clean_ytd_column(col):
+    # Extract a two-digit year from the column name
+    year_match = re.search(r"(\d{2})", col)
+    year = year_match.group(1) if year_match else ''
     
-    for product in products:
-        mtd_cols = [col for col in df_updated.columns 
-                    if product.lower() in col.lower() and 'mtd' in col.lower()]
-        
-        if len(mtd_cols) == 1:
-            mtd_col = mtd_cols[0]
-            eop_total_cols = [col for col in df_updated.columns 
-                              if col.lower().startswith(f"eop total {product.lower()}")]
-            
-            def extract_date(col_name):
-                match = re.search(r'\d{4}-\d{2}-\d{2}', col_name)
-                return match.group(0) if match else ""
-            
-            eop_total_cols = sorted(eop_total_cols, key=extract_date, reverse=True)
-            
-            if len(eop_total_cols) >= 2:
-                prev_month_col = eop_total_cols[1]
-                df_updated[f"v/s yesterday-{product}"] = df_updated[mtd_col] - df_updated[prev_month_col]
-        else:
-            pass
+    # Remove words like 'avg' and 'ytd' and any token that contains digits
+    tokens = [word for word in col.split() 
+              if word.lower() not in ('avg', 'ytd') and not re.search(r'\d', word)]
+    
+    # Combine the remaining tokens as the product name
+    product_name = " ".join(tokens)
+    
+    # Format as "YTD {product_name} {year}"
+    return f"YTD {product_name} {year}".strip()
 
-    return df_updated
+df_updated.columns = [
+    clean_ytd_column(col) if 'ytd' in col.lower() else col 
+    for col in df_updated.columns
+]
