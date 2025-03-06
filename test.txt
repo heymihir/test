@@ -1,25 +1,40 @@
-from pathlib import Path
-from datetime import datetime, timedelta
+import re
 
-def manage_folders(base_directory):
-    base_dir = Path(base_directory)
-    daily_dir = base_dir / "daily_balances_files"
-    daily_dir.mkdir(parents=True, exist_ok=True)
-    track_file = daily_dir / "last_run.txt"
-    current_date = datetime.today().date()
-    if track_file.exists():
-        last_run_date = datetime.strptime(track_file.read_text().strip(), "%Y-%m-%d").date()
-        if last_run_date < current_date:
-            today_date = last_run_date
-            track_file.write_text((current_date + timedelta(days=1)).strftime("%Y-%m-%d"))
+def create_eop_df(df_updated):
+    # (Assume other processing in the function remains unchanged)
+
+    products = ["CUA", "TMD", "EEFC"]
+    
+    for product in products:
+        # Identify MTD columns for the current product (case-insensitive search)
+        mtd_cols = [col for col in df_updated.columns 
+                    if product.lower() in col.lower() and 'mtd' in col.lower()]
+        
+        if len(mtd_cols) == 1:
+            # CHANGED: For the first day of month (only one MTD column), update v/s yesterday column
+            mtd_col = mtd_cols[0]
+            
+            # Find all "EOP total" columns for this product (case-insensitive) 
+            eop_total_cols = [col for col in df_updated.columns 
+                              if col.lower().startswith(f"eop total {product.lower()}")]
+            
+            # Sort these columns by the date (assumes format "EOP total {product} YYYY-MM-DD")
+            def extract_date(col_name):
+                match = re.search(r'\d{4}-\d{2}-\d{2}', col_name)
+                return match.group(0) if match else ""
+            
+            eop_total_cols = sorted(eop_total_cols, key=extract_date, reverse=True)
+            
+            if len(eop_total_cols) >= 2:
+                # CHANGED: Select the second latest date which represents the last day of previous month
+                prev_month_col = eop_total_cols[1]
+                # CHANGED: Calculate v/s yesterday as current MTD minus previous month's EOP total
+                df_updated[f"v/s yesterday-{product}"] = df_updated[mtd_col] - df_updated[prev_month_col]
+            else:
+                # Not enough "EOP total" columns to perform calculation, handle as needed.
+                pass
         else:
-            today_date = current_date
-    else:
-        today_date = current_date
-        track_file.write_text((current_date + timedelta(days=1)).strftime("%Y-%m-%d"))
-    tomorrow_date = current_date + timedelta(days=1)
-    today_path = daily_dir / today_date.strftime("%Y-%m-%d")
-    tomorrow_path = daily_dir / tomorrow_date.strftime("%Y-%m-%d")
-    tomorrow_path.mkdir(parents=True, exist_ok=True)
-    print(f'created folder: "{tomorrow_path}"')
-    return today_path, tomorrow_path
+            # More than one MTD column; leave v/s yesterday column unchanged as handled elsewhere.
+            pass
+
+    return df_updated
