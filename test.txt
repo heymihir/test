@@ -1,18 +1,31 @@
+ydef extract_date_from_column(col_name):
+    """
+    Extracts the last 10 characters from col_name, strips whitespace,
+    and attempts to parse as a date. Returns None if parsing fails.
+    """
+    # Grab last 10 characters (this will include a leading space if month < 10)
+    date_str = col_name[-10:].strip()
+    try:
+        # Let pandas infer the date format (handles zero-padded or single-digit months)
+        return pd.to_datetime(date_str, infer_datetime_format=True)
+    except ValueError:
+        # If it cannot parse, return None
+        return None
 
-# Define a function that renames the column if it matches the pattern
-def rename_column(col):
-    # Only modify columns that contain 'EOP' and not 'MTD'
-    if 'EOP' in col and 'MTD' not in col:
-        # Using regex to capture the parts after 'EOP'
-        # Pattern: starts with 'EOP', then whitespace, then product name, then the rest (date, etc.)
-        pattern = r'^(EOP)\s+(.+)$'
-        # Replace with 'EOP total {rest}'
-        new_col = re.sub(pattern, r'\1 total \2', col)
-        return new_col
-    return col
+# Build a list of (col_name, parsed_date) tuples, filtering out anything that doesn't parse
+parsed = []
+for col in columns:
+    dt = extract_date_from_column(col)
+    if dt is not None:
+        parsed.append((col, dt))
 
-# Rename the columns in-place
-df_base_data.rename(columns=lambda x: rename_column(x), inplace=True)
+# Sort by date
+parsed.sort(key=lambda x: x[1])  # Sort ascending by the parsed date
 
-# Print the new columns
-print(df_base_data.columns.tolist())
+# We want the second-largest date => second from the end
+# Make sure we have at least 2 valid dates
+if len(parsed) >= 2:
+    second_largest_col = parsed[-2][0]  # the column name of the second-latest date
+    print("Second largest date column:", second_largest_col)
+else:
+    print("Not enough valid date columns to determine second-largest date.")
