@@ -1,31 +1,44 @@
-ydef extract_date_from_column(col_name):
-    """
-    Extracts the last 10 characters from col_name, strips whitespace,
-    and attempts to parse as a date. Returns None if parsing fails.
-    """
-    # Grab last 10 characters (this will include a leading space if month < 10)
-    date_str = col_name[-10:].strip()
-    try:
-        # Let pandas infer the date format (handles zero-padded or single-digit months)
-        return pd.to_datetime(date_str, infer_datetime_format=True)
-    except ValueError:
-        # If it cannot parse, return None
-        return None
+import pandas as pd
+import re
 
-# Build a list of (col_name, parsed_date) tuples, filtering out anything that doesn't parse
-parsed = []
-for col in columns:
-    dt = extract_date_from_column(col)
-    if dt is not None:
-        parsed.append((col, dt))
+# Sample DataFrame with column names that include date parts
+df_base_data = pd.DataFrame(columns=[
+    'EOP CUA 2023-12-31',
+    'EOP CUA 2024-1-31',   # incomplete month: '1' instead of '01'
+    'EOP TMD 2024-3-31',   # incomplete month: '3' instead of '03'
+    'Other Column'
+])
 
-# Sort by date
-parsed.sort(key=lambda x: x[1])  # Sort ascending by the parsed date
+def rename_column(col):
+    # Process only columns that contain 'EOP' but not 'MTD'
+    if 'EOP' in col and 'MTD' not in col:
+        # Regex to capture:
+        #   Group 1: 'EOP'
+        #   Group 2: product name (non-greedy until the date)
+        #   Group 3: year (4 digits)
+        #   Group 4: month (1 or 2 digits)
+        #   Group 5: day (1 or 2 digits)
+        pattern = r'^(EOP)\s+(.+?)\s+(\d{4})-(\d{1,2})-(\d{1,2})$'
+        match = re.match(pattern, col)
+        if match:
+            prefix = match.group(1)
+            product = match.group(2)
+            year = match.group(3)
+            month = match.group(4).zfill(2)  # pad month with zero if needed
+            day = match.group(5).zfill(2)    # pad day with zero if needed
+            new_date = f"{year}-{month}-{day}"
+            # Construct new column with 'total' inserted after 'EOP'
+            new_col = f"{prefix} total {product} {new_date}"
+            return new_col
+        else:
+            # Fallback: if the detailed pattern isn't met, insert 'total' after 'EOP'
+            pattern_fallback = r'^(EOP)\s+(.+)$'
+            new_col = re.sub(pattern_fallback, r'\1 total \2', col)
+            return new_col
+    return col
 
-# We want the second-largest date => second from the end
-# Make sure we have at least 2 valid dates
-if len(parsed) >= 2:
-    second_largest_col = parsed[-2][0]  # the column name of the second-latest date
-    print("Second largest date column:", second_largest_col)
-else:
-    print("Not enough valid date columns to determine second-largest date.")
+# Rename columns in-place using the function
+df_base_data.rename(columns=lambda x: rename_column(x), inplace=True)
+
+# Print the new column names to verify changes
+print(df_base_data.columns.tolist())
