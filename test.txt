@@ -1,44 +1,102 @@
-import pandas as pd
-import re
+excel_file = 'formatted_pivot.xlsx'
+sheet_name = 'sheet4'
+title_row_idx = 0
+top_merge_row_idx = 1
+header_row_idx = 2
+data_start_row_idx = 3
 
-# Sample DataFrame with column names that include date parts
-df_base_data = pd.DataFrame(columns=[
-    'EOP CUA 2023-12-31',
-    'EOP CUA 2024-1-31',   # incomplete month: '1' instead of '01'
-    'EOP TMD 2024-3-31',   # incomplete month: '3' instead of '03'
-    'Other Column'
-])
+import xlsxwriter
+with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+    eop_pivot.to_excel(writer, index=False, sheet_name=sheet_name, startrow=data_start_row_idx, header=False)
+    workbook = writer.book
+    worksheet = writer.sheets[sheet_name]
+    border = 1
 
-def rename_column(col):
-    # Process only columns that contain 'EOP' but not 'MTD'
-    if 'EOP' in col and 'MTD' not in col:
-        # Regex to capture:
-        #   Group 1: 'EOP'
-        #   Group 2: product name (non-greedy until the date)
-        #   Group 3: year (4 digits)
-        #   Group 4: month (1 or 2 digits)
-        #   Group 5: day (1 or 2 digits)
-        pattern = r'^(EOP)\s+(.+?)\s+(\d{4})-(\d{1,2})-(\d{1,2})$'
-        match = re.match(pattern, col)
-        if match:
-            prefix = match.group(1)
-            product = match.group(2)
-            year = match.group(3)
-            month = match.group(4).zfill(2)  # pad month with zero if needed
-            day = match.group(5).zfill(2)    # pad day with zero if needed
-            new_date = f"{year}-{month}-{day}"
-            # Construct new column with 'total' inserted after 'EOP'
-            new_col = f"{prefix} total {product} {new_date}"
-            return new_col
-        else:
-            # Fallback: if the detailed pattern isn't met, insert 'total' after 'EOP'
-            pattern_fallback = r'^(EOP)\s+(.+)$'
-            new_col = re.sub(pattern_fallback, r'\1 total \2', col)
-            return new_col
-    return col
+    title_format = workbook.add_format({
+        'bold': True,
+        'font_name': 'Calibri',
+        'align': 'center',
+        'valign': 'vcenter',
+        'bg_color': '#FFD700',
+        'font_color': '#101820',
+        'border': border
+    })
+    top_merge_format = workbook.add_format({
+        'bold': True,
+        'font_name': 'Calibri',
+        'align': 'center',
+        'valign': 'vcenter',
+        'bg_color': '#D90019',
+        'font_color': '#FFFFFF',
+        'border': border
+    })
+    header_format = workbook.add_format({
+        'bold': True,
+        'font_name': 'Calibri',
+        'align': 'center',
+        'valign': 'vcenter',
+        'bg_color': '#4A4A4A',
+        'font_color': '#FFFFFF',
+        'border': border
+    })
+    default_cell_format = workbook.add_format({
+        'font_name': 'Calibri',
+        'font_color': '#101820',
+        'border': border
+    })
+    numeric_format = workbook.add_format({
+        'font_name': 'Calibri',
+        'font_color': '#101820',
+        'border': border,
+        'num_format': '#,##0'
+    })
+    negative_numeric_format = workbook.add_format({
+        'font_name': 'Calibri',
+        'font_color': '#DC143C',
+        'border': border,
+        'num_format': '#,##0'
+    })
+    total_row_format = workbook.add_format({
+        'bold': True,
+        'font_name': 'Calibri',
+        'bg_color': '#D1D3D4',
+        'font_color': '#101820',
+        'border': border,
+        'num_format': '#,##0'
+    })
 
-# Rename columns in-place using the function
-df_base_data.rename(columns=lambda x: rename_column(x), inplace=True)
+    worksheet.write(title_row_idx, 0, "EOP pivot", title_format)
 
-# Print the new column names to verify changes
-print(df_base_data.columns.tolist())
+    group_labels = ["CUA", "EEFC", "TMD", "ASSTES"]
+    num_cols = eop_pivot.shape[1]
+    group_size = 4
+    for i, label in enumerate(group_labels):
+        start_col = 1 + i * group_size
+        end_col = start_col + group_size - 1
+        if start_col >= num_cols:
+            break
+        if end_col >= num_cols:
+            end_col = num_cols - 1
+        worksheet.merge_range(top_merge_row_idx, start_col, top_merge_row_idx, end_col, label, top_merge_format)
+
+    for col_idx, col_name in enumerate(eop_pivot.columns):
+        worksheet.write(header_row_idx, col_idx, col_name, header_format)
+
+    for r_idx, row in enumerate(eop_pivot.itertuples(index=False), start=data_start_row_idx + 1):
+        is_total = "total" in str(row[0]).lower()
+        for c_idx, cell_val in enumerate(row):
+            fmt = total_row_format if is_total else default_cell_format
+            if pd.notna(cell_val) and isinstance(cell_val, (int, float)):
+                fmt = total_row_format if is_total else (negative_numeric_format if cell_val < 0 else numeric_format)
+            worksheet.write(r_idx, c_idx, cell_val, fmt)
+
+    for col_idx in range(num_cols):
+        header_text = str(eop_pivot.columns[col_idx])
+        max_len = len(header_text)
+        for r in range(eop_pivot.shape[0]):
+            cell_text = str(eop_pivot.iloc[r, col_idx])
+            max_len = max(max_len, len(cell_text))
+        worksheet.set_column(col_idx, col_idx, max_len + 2)
+
+workbook.close()
+print("Excel file 'formatted_pivot.xlsx' has been created.")
