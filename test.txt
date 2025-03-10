@@ -3,24 +3,19 @@ import pandas as pd
 def transform_df(df):
     df = df.copy()
     for col in df.columns:
-        if col == 'cust_id':  # skip cust_id column
+        if col == 'cust_id':
             continue
-        # For numeric columns, round to 4 decimals
         if pd.api.types.is_numeric_dtype(df[col]):
             df[col] = df[col].round(4)
-        # For object (text) columns, capitalize the text (if not null)
         elif pd.api.types.is_string_dtype(df[col]):
             df[col] = df[col].str.upper()
     return df
 
-# Transform both dataframes
 df_manual_transformed = transform_df(df_manual)
 df_code_transformed = transform_df(df_code)
 
-# Merge the transformed dataframes on 'cust_id'
 merged_df = pd.merge(df_manual_transformed, df_code_transformed, on='cust_id', suffixes=('_manual', '_code'))
 
-# List columns to compare (exclude cust_id)
 cols = [col for col in df_manual_transformed.columns if col != 'cust_id']
 
 match_rates = {}
@@ -29,21 +24,18 @@ mismatch_list = []
 for col in cols:
     manual_col = f"{col}_manual"
     code_col = f"{col}_code"
-    # Boolean series: True when the values match
     is_equal = merged_df[manual_col] == merged_df[code_col]
-    # Calculate match rate in percentage
     match_rates[col] = is_equal.mean() * 100
     
     if match_rates[col] < 100:
-        # Select rows with mismatches for this column
         diff = merged_df.loc[~is_equal, ['cust_id', manual_col, code_col]].copy()
-        diff['flag'] = col  # mark which column has a mismatch
+        diff['flag'] = col
         mismatch_list.append(diff)
 
-# DataFrame for match rates
 match_rate_df = pd.DataFrame(list(match_rates.items()), columns=['Column', 'Match Rate'])
-
-# Combined mismatch DataFrame (if any mismatches exist)
 mismatch_df = pd.concat(mismatch_list, ignore_index=True) if mismatch_list else pd.DataFrame()
 
-match_rate_df
+print("Match Rate % per Column:")
+print(match_rate_df)
+print("\nMismatches:")
+print(mismatch_df)
