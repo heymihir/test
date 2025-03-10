@@ -1,40 +1,37 @@
 import pandas as pd
-import datacompy
 
-def compare_dataframes_datacompy(df_manual, df_code):
-    # Perform comparison using datacompy
-    compare = datacompy.Compare(
-        df_manual, df_code,
-        join_columns="cust_id",  # Key column for comparison
-        df1_name="manual",
-        df2_name="code"
-    )
+# Assume df_manual and df_code are already defined with a common 'cust_id' column
 
-    # Get column-wise match rates
-    match_rates = {
-        col: compare.column_stats.loc[col, "match_rate"] * 100
-        for col in compare.column_stats.index
-    }
+# Merge dataframes on 'cust_id' with suffixes to distinguish manual vs. code values
+merged_df = pd.merge(df_manual, df_code, on='cust_id', suffixes=('_manual', '_code'))
+
+# Get list of columns to compare (exclude cust_id)
+cols = [col for col in df_manual.columns if col != 'cust_id']
+
+match_rates = {}
+mismatch_list = []
+
+for col in cols:
+    manual_col = f"{col}_manual"
+    code_col = f"{col}_code"
+    # Boolean series: True when the values match
+    is_equal = merged_df[manual_col] == merged_df[code_col]
+    # Calculate match rate in percentage
+    match_rates[col] = is_equal.mean() * 100
     
-    # Identify columns with mismatches
-    mismatched_cols = [col for col, rate in match_rates.items() if rate < 100]
+    if match_rates[col] < 100:
+        # Select rows where there is a mismatch
+        diff = merged_df[~is_equal][['cust_id', manual_col, code_col]].copy()
+        diff['flag'] = col  # Flag which column is mismatched
+        mismatch_list.append(diff)
 
-    if not mismatched_cols:
-        return None, match_rates  # No mismatches found
+# Create a DataFrame for match rates
+match_rate_df = pd.DataFrame(list(match_rates.items()), columns=['Column', 'Match Rate'])
 
-    # Get mismatched rows with only affected columns
-    mismatched_df = compare.all_mismatch()
-    
-    # Keep only cust_id, mismatched columns, and add a flag column
-    mismatched_df = mismatched_df[['cust_id'] + mismatched_cols].copy()
-    mismatched_df['mismatch_flag'] = mismatched_df.apply(
-        lambda row: ', '.join(col for col in mismatched_cols if row[col] != df_manual.set_index("cust_id").loc[row["cust_id"], col]),
-        axis=1
-    )
+# Concatenate all mismatch details into one DataFrame (if any)
+mismatch_df = pd.concat(mismatch_list, ignore_index=True) if mismatch_list else pd.DataFrame()
 
-    return mismatched_df, match_rates
-
-# Example usage:
-# df_result, match_rates = compare_dataframes_datacompy(df_manual, df_code)
-# print(match_rates)
-# print(df_result)
+print("Match Rate % per Column:")
+print(match_rate_df)
+print("\nMismatches:")
+print(mismatch_df)
