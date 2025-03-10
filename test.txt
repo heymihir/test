@@ -1,24 +1,58 @@
-filter_conditions = [
-    lambda col: 'EOP' in col or 'MTD' in col,  
-    lambda col: ('Avg' in col and ('Mar' in col or 'Feb' in col)),  
-    lambda col: col in ['cust_id', 'RM', 'TL', 'region', 'city']  
-]
+import pandas as pd
+import re
+from datetime import datetime
 
-# Filter required columns based on conditions
-req_cols = [col for col in df_manual.columns if any(cond(col) for cond in filter_conditions)]
+# Base columns
+base_cols = ['cust_id', 'RM', 'TL', 'CUST_NAME']
 
-# Extract lm_cols (Last Month Columns)
-lm_cols = [col for col in df_manual.columns if col.startswith("EOP TOTAL")]
-lm_cols = sorted(lm_cols, key=lambda x: pd.to_datetime(x[-10:]))  # Sorting by date
-lm_cols = lm_cols[-2:] if len(lm_cols) >= 2 else lm_cols  # Get the 2 latest columns (or 1 if only 1 exists)
+# Average columns filtering and selection
+avg_cols = [col for col in df_manual.columns if col.startswith("Avg ")]
+def extract_avg_date(col):
+    m = re.search(r'(\w{3}-\d{2})$', col)
+    if m:
+        try:
+            return datetime.strptime(m.group(1), "%b-%y")
+        except:
+            return None
+    return None
 
-# Extract daily_cols (Daily Columns)
-daily_cols = [col for col in df_manual.columns if col.startswith("EOP-")]
-daily_cols = sorted(daily_cols, key=lambda x: int(x.split("-")[-1]))  # Sorting by numeric date
-daily_cols = daily_cols[-2:] if len(daily_cols) >= 2 else daily_cols  # Get the 2 latest columns (or 1 if only 1 exists)
+avg_by_prod = {}
+for col in avg_cols:
+    parts = col.split()
+    if len(parts) >= 3:
+        prod = parts[1]
+        dt = extract_avg_date(col)
+        if dt:
+            avg_by_prod.setdefault(prod, []).append((col, dt))
+filtered_avg_cols = []
+for prod, cols in avg_by_prod.items():
+    cols_sorted = sorted(cols, key=lambda x: x[1], reverse=True)
+    for i in range(min(2, len(cols_sorted))):  # Change: selecting last 2 month avg columns per product
+        filtered_avg_cols.append(cols_sorted[i][0])
 
-# Extend required columns
-req_cols.extend(daily_cols + lm_cols)
+# Daily EOP MTD columns filtering and selection
+daily_cols = [col for col in df_manual.columns if col.startswith("EOP-") and "-MTD-" in col]
+def extract_day(col):
+    try:
+        return int(col.split("-")[-1])
+    except:
+        return 0
+daily_cols_sorted = sorted(daily_cols, key=extract_day)
+filtered_daily_cols = daily_cols_sorted[-2:] if len(daily_cols_sorted) >= 2 else daily_cols_sorted
 
-# Display the final required columns
-req_cols
+# EOP TOTAL columns filtering and selection
+total_cols = [col for col in df_manual.columns if col.startswith("EOP TOTAL")]
+def extract_total_date(col):
+    try:
+        return datetime.strptime(col[-10:], "%Y-%m-%d")
+    except:
+        return None
+total_cols_sorted = sorted(total_cols, key=extract_total_date)
+filtered_total_cols = total_cols_sorted[-2:] if len(total_cols_sorted) >= 2 else total_cols_sorted
+
+# Combine all required columns
+req_cols = base_cols + filtered_avg_cols + filtered_daily_cols + filtered_total_cols
+req_cols = list(dict.fromkeys(req_cols))  # Remove duplicates while preserving order
+
+df_filtered = df_manual[req_cols]
+print(req_cols)
