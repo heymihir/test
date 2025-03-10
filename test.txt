@@ -1,7 +1,37 @@
+import pandas as pd
 
-# Add dash after "MTD" if not already present
-updated_data = [re.sub(r"(MTD)(\s)", r"\1-\2", line) for line in data]
+def compare_dataframes(df_manual, df_code):
+    # Ensure data is aligned on cust_id
+    df_manual = df_manual.set_index('cust_id')
+    df_code = df_code.set_index('cust_id')
+    
+    # Compute match rate for each column
+    match_rates = (df_manual == df_code).mean() * 100
+    
+    # Identify columns with mismatches
+    mismatched_cols = match_rates[match_rates < 100].index.tolist()
+    
+    if not mismatched_cols:
+        return None, match_rates  # No mismatches
+    
+    # Filter rows where at least one mismatch occurs
+    mismatch_mask = df_manual[mismatched_cols] != df_code[mismatched_cols]
+    mismatch_rows = mismatch_mask.any(axis=1)
+    
+    # Create merged dataframe with only mismatched columns
+    df_merged = df_manual[mismatched_cols].copy()
+    df_merged = df_merged.rename(lambda col: col + '_manual', axis=1)
+    df_merged = df_merged.join(df_code[mismatched_cols].rename(lambda col: col + '_code', axis=1))
+    
+    # Add a flag column indicating mismatched columns for each row
+    df_merged['mismatch_flag'] = mismatch_mask.apply(lambda row: ', '.join(row.index[row]), axis=1)
+    
+    # Reset index to include cust_id
+    df_merged = df_merged.reset_index()
+    
+    return df_merged, match_rates
 
-# Print the updated data
-for line in updated_data:
-    print(line)
+# Example usage:
+# df_result, match_rates = compare_dataframes(df_manual, df_code)
+# print(match_rates)
+# print(df_result)
