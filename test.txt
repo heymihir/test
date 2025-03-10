@@ -1,102 +1,32 @@
-excel_file = 'formatted_pivot.xlsx'
-sheet_name = 'sheet4'
-title_row_idx = 0
-top_merge_row_idx = 1
-header_row_idx = 2
-data_start_row_idx = 3
+import pandas as pd
 
-import xlsxwriter
-with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
-    eop_pivot.to_excel(writer, index=False, sheet_name=sheet_name, startrow=data_start_row_idx, header=False)
-    workbook = writer.book
-    worksheet = writer.sheets[sheet_name]
-    border = 1
+# Sample DataFrame (Replace with your actual DataFrame)
+df = pd.DataFrame({
+    'cust_id': [1, 2, 3],
+    'RM': ['A', 'B', 'C'],
+    'TL': ['X', 'Y', 'Z'],
+    'region': ['North', 'South', 'East'],
+    'city': ['NY', 'LA', 'CHI'],
+    'EOP Revenue': [100, 200, 300],
+    'MTD Sales': [400, 500, 600],
+    'Avg Sales Mar': [700, 800, 900],
+    'Avg Growth Feb': [1000, 1100, 1200],
+    'Other Column': [1300, 1400, 1500]
+})
 
-    title_format = workbook.add_format({
-        'bold': True,
-        'font_name': 'Calibri',
-        'align': 'center',
-        'valign': 'vcenter',
-        'bg_color': '#FFD700',
-        'font_color': '#101820',
-        'border': border
-    })
-    top_merge_format = workbook.add_format({
-        'bold': True,
-        'font_name': 'Calibri',
-        'align': 'center',
-        'valign': 'vcenter',
-        'bg_color': '#D90019',
-        'font_color': '#FFFFFF',
-        'border': border
-    })
-    header_format = workbook.add_format({
-        'bold': True,
-        'font_name': 'Calibri',
-        'align': 'center',
-        'valign': 'vcenter',
-        'bg_color': '#4A4A4A',
-        'font_color': '#FFFFFF',
-        'border': border
-    })
-    default_cell_format = workbook.add_format({
-        'font_name': 'Calibri',
-        'font_color': '#101820',
-        'border': border
-    })
-    numeric_format = workbook.add_format({
-        'font_name': 'Calibri',
-        'font_color': '#101820',
-        'border': border,
-        'num_format': '#,##0'
-    })
-    negative_numeric_format = workbook.add_format({
-        'font_name': 'Calibri',
-        'font_color': '#DC143C',
-        'border': border,
-        'num_format': '#,##0'
-    })
-    total_row_format = workbook.add_format({
-        'bold': True,
-        'font_name': 'Calibri',
-        'bg_color': '#D1D3D4',
-        'font_color': '#101820',
-        'border': border,
-        'num_format': '#,##0'
-    })
+# Conditions to filter columns
+filter_conditions = [
+    lambda col: 'EOP' in col or 'MTD' in col,  # Condition 1
+    lambda col: ('Avg' in col and ('Mar' in col or 'Feb' in col)),  # Condition 2
+    lambda col: col in ['cust_id', 'RM', 'TL', 'region', 'city']  # Condition 3
+]
 
-    worksheet.write(title_row_idx, 0, "EOP pivot", title_format)
+# Filter columns based on conditions
+filtered_columns = [col for col in df.columns if any(cond(col) for cond in filter_conditions)]
 
-    group_labels = ["CUA", "EEFC", "TMD", "ASSTES"]
-    num_cols = eop_pivot.shape[1]
-    group_size = 4
-    for i, label in enumerate(group_labels):
-        start_col = 1 + i * group_size
-        end_col = start_col + group_size - 1
-        if start_col >= num_cols:
-            break
-        if end_col >= num_cols:
-            end_col = num_cols - 1
-        worksheet.merge_range(top_merge_row_idx, start_col, top_merge_row_idx, end_col, label, top_merge_format)
+# Create new DataFrame with filtered columns
+filtered_df = df[filtered_columns]
 
-    for col_idx, col_name in enumerate(eop_pivot.columns):
-        worksheet.write(header_row_idx, col_idx, col_name, header_format)
-
-    for r_idx, row in enumerate(eop_pivot.itertuples(index=False), start=data_start_row_idx + 1):
-        is_total = "total" in str(row[0]).lower()
-        for c_idx, cell_val in enumerate(row):
-            fmt = total_row_format if is_total else default_cell_format
-            if pd.notna(cell_val) and isinstance(cell_val, (int, float)):
-                fmt = total_row_format if is_total else (negative_numeric_format if cell_val < 0 else numeric_format)
-            worksheet.write(r_idx, c_idx, cell_val, fmt)
-
-    for col_idx in range(num_cols):
-        header_text = str(eop_pivot.columns[col_idx])
-        max_len = len(header_text)
-        for r in range(eop_pivot.shape[0]):
-            cell_text = str(eop_pivot.iloc[r, col_idx])
-            max_len = max(max_len, len(cell_text))
-        worksheet.set_column(col_idx, col_idx, max_len + 2)
-
-workbook.close()
-print("Excel file 'formatted_pivot.xlsx' has been created.")
+# Display filtered DataFrame
+import ace_tools as tools
+tools.display_dataframe_to_user(name="Filtered DataFrame", dataframe=filtered_df)
