@@ -1,32 +1,24 @@
-import pandas as pd
-
-# Sample DataFrame (Replace with your actual DataFrame)
-df = pd.DataFrame({
-    'cust_id': [1, 2, 3],
-    'RM': ['A', 'B', 'C'],
-    'TL': ['X', 'Y', 'Z'],
-    'region': ['North', 'South', 'East'],
-    'city': ['NY', 'LA', 'CHI'],
-    'EOP Revenue': [100, 200, 300],
-    'MTD Sales': [400, 500, 600],
-    'Avg Sales Mar': [700, 800, 900],
-    'Avg Growth Feb': [1000, 1100, 1200],
-    'Other Column': [1300, 1400, 1500]
-})
-
-# Conditions to filter columns
 filter_conditions = [
-    lambda col: 'EOP' in col or 'MTD' in col,  # Condition 1
-    lambda col: ('Avg' in col and ('Mar' in col or 'Feb' in col)),  # Condition 2
-    lambda col: col in ['cust_id', 'RM', 'TL', 'region', 'city']  # Condition 3
+    lambda col: 'EOP' in col or 'MTD' in col,  
+    lambda col: ('Avg' in col and ('Mar' in col or 'Feb' in col)),  
+    lambda col: col in ['cust_id', 'RM', 'TL', 'region', 'city']  
 ]
 
-# Filter columns based on conditions
-filtered_columns = [col for col in df.columns if any(cond(col) for cond in filter_conditions)]
+# Filter required columns based on conditions
+req_cols = [col for col in df_manual.columns if any(cond(col) for cond in filter_conditions)]
 
-# Create new DataFrame with filtered columns
-filtered_df = df[filtered_columns]
+# Extract lm_cols (Last Month Columns)
+lm_cols = [col for col in df_manual.columns if col.startswith("EOP TOTAL")]
+lm_cols = sorted(lm_cols, key=lambda x: pd.to_datetime(x[-10:]))  # Sorting by date
+lm_cols = lm_cols[-2:] if len(lm_cols) >= 2 else lm_cols  # Get the 2 latest columns (or 1 if only 1 exists)
 
-# Display filtered DataFrame
-import ace_tools as tools
-tools.display_dataframe_to_user(name="Filtered DataFrame", dataframe=filtered_df)
+# Extract daily_cols (Daily Columns)
+daily_cols = [col for col in df_manual.columns if col.startswith("EOP-")]
+daily_cols = sorted(daily_cols, key=lambda x: int(x.split("-")[-1]))  # Sorting by numeric date
+daily_cols = daily_cols[-2:] if len(daily_cols) >= 2 else daily_cols  # Get the 2 latest columns (or 1 if only 1 exists)
+
+# Extend required columns
+req_cols.extend(daily_cols + lm_cols)
+
+# Display the final required columns
+req_cols
