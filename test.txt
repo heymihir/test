@@ -1,37 +1,40 @@
 import pandas as pd
+import datacompy
 
-def compare_dataframes(df_manual, df_code):
-    # Ensure data is aligned on cust_id
-    df_manual = df_manual.set_index('cust_id')
-    df_code = df_code.set_index('cust_id')
-    
-    # Compute match rate for each column
-    match_rates = (df_manual == df_code).mean() * 100
+def compare_dataframes_datacompy(df_manual, df_code):
+    # Perform comparison using datacompy
+    compare = datacompy.Compare(
+        df_manual, df_code,
+        join_columns="cust_id",  # Key column for comparison
+        df1_name="manual",
+        df2_name="code"
+    )
+
+    # Get column-wise match rates
+    match_rates = {
+        col: compare.column_stats.loc[col, "match_rate"] * 100
+        for col in compare.column_stats.index
+    }
     
     # Identify columns with mismatches
-    mismatched_cols = match_rates[match_rates < 100].index.tolist()
-    
+    mismatched_cols = [col for col, rate in match_rates.items() if rate < 100]
+
     if not mismatched_cols:
-        return None, match_rates  # No mismatches
+        return None, match_rates  # No mismatches found
+
+    # Get mismatched rows with only affected columns
+    mismatched_df = compare.all_mismatch()
     
-    # Filter rows where at least one mismatch occurs
-    mismatch_mask = df_manual[mismatched_cols] != df_code[mismatched_cols]
-    mismatch_rows = mismatch_mask.any(axis=1)
-    
-    # Create merged dataframe with only mismatched columns
-    df_merged = df_manual[mismatched_cols].copy()
-    df_merged = df_merged.rename(lambda col: col + '_manual', axis=1)
-    df_merged = df_merged.join(df_code[mismatched_cols].rename(lambda col: col + '_code', axis=1))
-    
-    # Add a flag column indicating mismatched columns for each row
-    df_merged['mismatch_flag'] = mismatch_mask.apply(lambda row: ', '.join(row.index[row]), axis=1)
-    
-    # Reset index to include cust_id
-    df_merged = df_merged.reset_index()
-    
-    return df_merged, match_rates
+    # Keep only cust_id, mismatched columns, and add a flag column
+    mismatched_df = mismatched_df[['cust_id'] + mismatched_cols].copy()
+    mismatched_df['mismatch_flag'] = mismatched_df.apply(
+        lambda row: ', '.join(col for col in mismatched_cols if row[col] != df_manual.set_index("cust_id").loc[row["cust_id"], col]),
+        axis=1
+    )
+
+    return mismatched_df, match_rates
 
 # Example usage:
-# df_result, match_rates = compare_dataframes(df_manual, df_code)
+# df_result, match_rates = compare_dataframes_datacompy(df_manual, df_code)
 # print(match_rates)
 # print(df_result)
