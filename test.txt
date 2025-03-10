@@ -1,12 +1,27 @@
 import pandas as pd
 
-# Assume df_manual and df_code are already defined with a common 'cust_id' column
+def transform_df(df):
+    df = df.copy()
+    for col in df.columns:
+        if col == 'cust_id':  # skip cust_id column
+            continue
+        # For numeric columns, round to 4 decimals
+        if pd.api.types.is_numeric_dtype(df[col]):
+            df[col] = df[col].round(4)
+        # For object (text) columns, capitalize the text (if not null)
+        elif pd.api.types.is_string_dtype(df[col]):
+            df[col] = df[col].str.upper()
+    return df
 
-# Merge dataframes on 'cust_id' with suffixes to distinguish manual vs. code values
-merged_df = pd.merge(df_manual, df_code, on='cust_id', suffixes=('_manual', '_code'))
+# Transform both dataframes
+df_manual_transformed = transform_df(df_manual)
+df_code_transformed = transform_df(df_code)
 
-# Get list of columns to compare (exclude cust_id)
-cols = [col for col in df_manual.columns if col != 'cust_id']
+# Merge the transformed dataframes on 'cust_id'
+merged_df = pd.merge(df_manual_transformed, df_code_transformed, on='cust_id', suffixes=('_manual', '_code'))
+
+# List columns to compare (exclude cust_id)
+cols = [col for col in df_manual_transformed.columns if col != 'cust_id']
 
 match_rates = {}
 mismatch_list = []
@@ -20,18 +35,15 @@ for col in cols:
     match_rates[col] = is_equal.mean() * 100
     
     if match_rates[col] < 100:
-        # Select rows where there is a mismatch
-        diff = merged_df[~is_equal][['cust_id', manual_col, code_col]].copy()
-        diff['flag'] = col  # Flag which column is mismatched
+        # Select rows with mismatches for this column
+        diff = merged_df.loc[~is_equal, ['cust_id', manual_col, code_col]].copy()
+        diff['flag'] = col  # mark which column has a mismatch
         mismatch_list.append(diff)
 
-# Create a DataFrame for match rates
+# DataFrame for match rates
 match_rate_df = pd.DataFrame(list(match_rates.items()), columns=['Column', 'Match Rate'])
 
-# Concatenate all mismatch details into one DataFrame (if any)
+# Combined mismatch DataFrame (if any mismatches exist)
 mismatch_df = pd.concat(mismatch_list, ignore_index=True) if mismatch_list else pd.DataFrame()
 
-print("Match Rate % per Column:")
-print(match_rate_df)
-print("\nMismatches:")
-print(mismatch_df)
+match_rate_df
