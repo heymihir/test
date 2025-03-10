@@ -2,11 +2,8 @@ import pandas as pd
 import re
 from datetime import datetime
 
-# Base columns
 base_cols = ['cust_id', 'RM', 'TL', 'CUST_NAME']
 
-# Average columns filtering and selection
-avg_cols = [col for col in df_manual.columns if col.startswith("Avg ")]
 def extract_avg_date(col):
     m = re.search(r'(\w{3}-\d{2})$', col)
     if m:
@@ -16,43 +13,59 @@ def extract_avg_date(col):
             return None
     return None
 
+avg_cols = [col for col in df_manual.columns if col.startswith("Avg ")]
 avg_by_prod = {}
 for col in avg_cols:
-    parts = col.split()
+    parts = col.split("-")
     if len(parts) >= 3:
-        prod = parts[1]
+        prod = parts[1].strip()
         dt = extract_avg_date(col)
         if dt:
             avg_by_prod.setdefault(prod, []).append((col, dt))
 filtered_avg_cols = []
 for prod, cols in avg_by_prod.items():
     cols_sorted = sorted(cols, key=lambda x: x[1], reverse=True)
-    for i in range(min(2, len(cols_sorted))):  # Change: selecting last 2 month avg columns per product
+    for i in range(min(2, len(cols_sorted))):  # selecting last 2 month avg columns per product
         filtered_avg_cols.append(cols_sorted[i][0])
 
-# Daily EOP MTD columns filtering and selection
-daily_cols = [col for col in df_manual.columns if col.startswith("EOP-") and "-MTD-" in col]
-def extract_day(col):
-    try:
-        return int(col.split("-")[-1])
-    except:
-        return 0
-daily_cols_sorted = sorted(daily_cols, key=extract_day)
-filtered_daily_cols = daily_cols_sorted[-2:] if len(daily_cols_sorted) >= 2 else daily_cols_sorted
+# Daily MTD columns: product-wise top 2 largest (by day)
+daily_cols = [col for col in df_manual.columns if 'EOP' in col.upper() and 'MTD' in col.upper()]
+daily_by_prod = {}
+for col in daily_cols:
+    parts = col.split("-")
+    if len(parts) >= 4:
+        prod = parts[1].strip()
+        try:
+            day = int(parts[-1])
+        except:
+            day = 0
+        daily_by_prod.setdefault(prod, []).append((col, day))
+filtered_daily_cols = []
+for prod, cols in daily_by_prod.items():
+    cols_sorted = sorted(cols, key=lambda x: x[1], reverse=True)
+    for i in range(min(2, len(cols_sorted))):  # selecting top 2 daily MTD columns per product
+        filtered_daily_cols.append(cols_sorted[i][0])
 
-# EOP TOTAL columns filtering and selection
+# EOP TOTAL columns: product-wise top 2 largest (by date)
 total_cols = [col for col in df_manual.columns if col.startswith("EOP TOTAL")]
-def extract_total_date(col):
-    try:
-        return datetime.strptime(col[-10:], "%Y-%m-%d")
-    except:
-        return None
-total_cols_sorted = sorted(total_cols, key=extract_total_date)
-filtered_total_cols = total_cols_sorted[-2:] if len(total_cols_sorted) >= 2 else total_cols_sorted
+total_by_prod = {}
+for col in total_cols:
+    parts = col.split()
+    if len(parts) >= 4:
+        prod = parts[2].strip()
+        try:
+            dt = datetime.strptime(parts[-1], "%Y-%m-%d")
+        except:
+            dt = None
+        if dt:
+            total_by_prod.setdefault(prod, []).append((col, dt))
+filtered_total_cols = []
+for prod, cols in total_by_prod.items():
+    cols_sorted = sorted(cols, key=lambda x: x[1], reverse=True)
+    for i in range(min(2, len(cols_sorted))):  # selecting top 2 EOP TOTAL columns per product
+        filtered_total_cols.append(cols_sorted[i][0])
 
-# Combine all required columns
 req_cols = base_cols + filtered_avg_cols + filtered_daily_cols + filtered_total_cols
-req_cols = list(dict.fromkeys(req_cols))  # Remove duplicates while preserving order
-
+req_cols = list(dict.fromkeys(req_cols))
 df_filtered = df_manual[req_cols]
 print(req_cols)
