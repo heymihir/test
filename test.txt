@@ -39,3 +39,6 @@ print("Match Rate % per Column:")
 print(match_rate_df)
 print("\nMismatches:")
 print(mismatch_df)
+
+
+df = df.loc[:, ~df.columns.duplicated(keep='first')]
