@@ -1,2 +1,3 @@
 cols = [col for col in df.columns if col.startswith("is_equal_")]
-filtered_df = df[df[cols].ne(1).any(axis=1)]
+result_df = pd.DataFrame({col: [(df[col] != 1).mean()*100] for col in cols}, index=["Not Equal %"])
+print(result_df)
