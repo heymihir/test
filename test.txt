@@ -1,10 +1,2 @@
-import numpy as np
-
-cols = list(dm.columns)
-offset = 0
-for i, col in enumerate(cols):
-    idx = i + 1 + offset
-    dm.insert(idx, f"{col}_code", np.nan)
-    offset += 1
-    dm.insert(idx + 1, f"is_equal_{col}", np.nan)
-    offset += 1
+cols = [col for col in df.columns if col.startswith("is_equal_")]
+filtered_df = df[df[cols].ne(1).any(axis=1)]
