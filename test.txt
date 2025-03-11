@@ -12,26 +12,33 @@ def preprocess(df):
 df_manual = preprocess(df_manual)
 df_code = preprocess(df_code)
 df_merged = pd.merge(df_manual, df_code, on='cust_id', suffixes=('_manual', '_code'))
-cols = [col for col in df_manual.columns if col != 'cust_id']
+cols = [c for c in df_manual.columns if c != 'cust_id']
 match_rates = {}
-mismatches = []
+mismatch_list = []
 for col in cols:
-    m_col, c_col = col + '_manual', col + '_code'
-    mask = df_merged[m_col] == df_merged[c_col]
+    m, c = f"{col}_manual", f"{col}_code"
+    mask = df_merged[m] == df_merged[c]
     match_rates[col] = mask.mean() * 100
-    for cid in df_merged.loc[~mask, 'cust_id']:
-        mismatches.append({'cust_id': cid, 'column': col})
-df_flags = pd.DataFrame(mismatches).groupby('cust_id')['column'].apply(lambda x: ', '.join(x)).reset_index().rename(columns={'column': 'flag'})
-mismatch_details = []
-for _, row in df_flags.iterrows():
-    cid = row['cust_id']
-    flags = row['flag'].split(', ')
-    rec = df_merged[df_merged['cust_id'] == cid].iloc[0]
-    detail = {'cust_id': cid, 'flag': row['flag']}
-    for col in flags:
-        detail[col + '_manual'] = rec[col + '_manual']
-        detail[col + '_code'] = rec[col + '_code']
-    mismatch_details.append(detail)
-df_mismatches = pd.DataFrame(mismatch_details)
+    diff = df_merged.loc[~mask, ['cust_id', m, c]].copy()
+    if not diff.empty:
+        diff['mismatch_col'] = col
+        diff = diff.rename(columns={m: f"{col}_manual", c: f"{col}_code"}).reset_index(drop=True)
+        mismatch_list.append(diff)
+if mismatch_list:
+    df_diff = pd.concat(mismatch_list, ignore_index=True)
+    flag_df = df_diff.groupby('cust_id')['mismatch_col']\
+                    .apply(lambda x: ','.join(x)).reset_index().rename(columns={'mismatch_col':'flag'})
+    final = []
+    for cid, group in df_diff.groupby('cust_id'):
+        row = {'cust_id': cid, 'flag': flag_df.loc[flag_df.cust_id == cid, 'flag'].iloc[0]}
+        for _, r in group.iterrows():
+            col = r['mismatch_col']
+            row[f"{col}_manual"] = r[f"{col}_manual"]
+            row[f"{col}_code"] = r[f"{col}_code"]
+        final.append(row)
+    mismatch_df = pd.DataFrame(final)
+else:
+    mismatch_df = pd.DataFrame()
+
 print(match_rates)
-print(df_mismatches)
+print(mismatch_df)
