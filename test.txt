@@ -1,44 +1,41 @@
 import pandas as pd
 
-def preprocess(df):
+def transform_df(df):
     df = df.copy()
     for col in df.columns:
+        if col == 'cust_id':
+            continue
         if pd.api.types.is_numeric_dtype(df[col]):
             df[col] = df[col].round(4)
         elif pd.api.types.is_string_dtype(df[col]):
             df[col] = df[col].str.upper()
     return df
 
-df_manual = preprocess(df_manual)
-df_code = preprocess(df_code)
-df_merged = pd.merge(df_manual, df_code, on='cust_id', suffixes=('_manual', '_code'))
-cols = [c for c in df_manual.columns if c != 'cust_id']
+df_manual_transformed = transform_df(df_manual)
+df_code_transformed = transform_df(df_code)
+
+merged_df = pd.merge(df_manual_transformed, df_code_transformed, on='cust_id', suffixes=('_manual', '_code'))
+
+cols = [col for col in df_manual_transformed.columns if col != 'cust_id']
+
 match_rates = {}
 mismatch_list = []
-for col in cols:
-    m, c = f"{col}_manual", f"{col}_code"
-    mask = df_merged[m] == df_merged[c]
-    match_rates[col] = mask.mean() * 100
-    diff = df_merged.loc[~mask, ['cust_id', m, c]].copy()
-    if not diff.empty:
-        diff['mismatch_col'] = col
-        diff = diff.rename(columns={m: f"{col}_manual", c: f"{col}_code"}).reset_index(drop=True)
-        mismatch_list.append(diff)
-if mismatch_list:
-    df_diff = pd.concat(mismatch_list, ignore_index=True)
-    flag_df = df_diff.groupby('cust_id')['mismatch_col']\
-                    .apply(lambda x: ','.join(x)).reset_index().rename(columns={'mismatch_col':'flag'})
-    final = []
-    for cid, group in df_diff.groupby('cust_id'):
-        row = {'cust_id': cid, 'flag': flag_df.loc[flag_df.cust_id == cid, 'flag'].iloc[0]}
-        for _, r in group.iterrows():
-            col = r['mismatch_col']
-            row[f"{col}_manual"] = r[f"{col}_manual"]
-            row[f"{col}_code"] = r[f"{col}_code"]
-        final.append(row)
-    mismatch_df = pd.DataFrame(final)
-else:
-    mismatch_df = pd.DataFrame()
 
-print(match_rates)
+for col in cols:
+    manual_col = f"{col}_manual"
+    code_col = f"{col}_code"
+    is_equal = merged_df[manual_col] == merged_df[code_col]
+    match_rates[col] = is_equal.mean() * 100
+    
+    if match_rates[col] < 100:
+        diff = merged_df.loc[~is_equal, ['cust_id', manual_col, code_col]].copy()
+        diff['flag'] = col
+        mismatch_list.append(diff)
+
+match_rate_df = pd.DataFrame(list(match_rates.items()), columns=['Column', 'Match Rate'])
+mismatch_df = pd.concat(mismatch_list, ignore_index=True) if mismatch_list else pd.DataFrame()
+
+print("Match Rate % per Column:")
+print(match_rate_df)
+print("\nMismatches:")
 print(mismatch_df)
