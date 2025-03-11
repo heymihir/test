@@ -1,41 +1,9 @@
-import pandas as pd
 
-def transform_df(df):
-    df = df.copy()
-    for col in df.columns:
-        if col == 'cust_id':
-            continue
-        if pd.api.types.is_numeric_dtype(df[col]):
-            df[col] = df[col].round(4)
-        elif pd.api.types.is_string_dtype(df[col]):
-            df[col] = df[col].str.upper()
-    return df
 
-df_manual_transformed = transform_df(df_manual)
-df_code_transformed = transform_df(df_code)
+When uploads Excel files to OneDrive, they are automatically converted to PDFs, causing an error. Is there an alternative storage option, or must she manually save them as "internal" before sharing? This process is time-consuming due to the large number of files.
 
-merged_df = pd.merge(df_manual_transformed, df_code_transformed, on='cust_id', suffixes=('_manual', '_code'))
+Please advise.
 
-cols = [col for col in df_manual_transformed.columns if col != 'cust_id']
+Best,
+[Your Name]
 
-match_rates = {}
-mismatch_list = []
-
-for col in cols:
-    manual_col = f"{col}_manual"
-    code_col = f"{col}_code"
-    is_equal = merged_df[manual_col] == merged_df[code_col]
-    match_rates[col] = is_equal.mean() * 100
-    
-    if match_rates[col] < 100:
-        diff = merged_df.loc[~is_equal, ['cust_id', manual_col, code_col]].copy()
-        diff['flag'] = col
-        mismatch_list.append(diff)
-
-match_rate_df = pd.DataFrame(list(match_rates.items()), columns=['Column', 'Match Rate'])
-mismatch_df = pd.concat(mismatch_list, ignore_index=True) if mismatch_list else pd.DataFrame()
-
-print("Match Rate % per Column:")
-print(match_rate_df)
-print("\nMismatches:")
-print(mismatch_df)
