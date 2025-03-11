@@ -3,5 +3,8 @@ import numpy as np
 cols = list(dm.columns)
 offset = 0
 for i, col in enumerate(cols):
-    dm.insert(i + 1 + offset, f"{col}_code", np.nan)
+    idx = i + 1 + offset
+    dm.insert(idx, f"{col}_code", np.nan)
+    offset += 1
+    dm.insert(idx + 1, f"is_equal_{col}", np.nan)
     offset += 1
