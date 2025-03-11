@@ -1,9 +1,1 @@
-
-
-When uploads Excel files to OneDrive, they are automatically converted to PDFs, causing an error. Is there an alternative storage option, or must she manually save them as "internal" before sharing? This process is time-consuming due to the large number of files.
-
-Please advise.
-
-Best,
-[Your Name]
-
+/////
