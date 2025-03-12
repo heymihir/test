@@ -1,4 +1,87 @@
-After reviewing the code output for March 5 and March 9, I found an asset mismatch rate of approximately 10%, primarily due to the following reasons:
+import pandas as pd
 
-The MTD-09 asset data is missing from the manual file.
-The average values in the code output do not match those in the manual file. I manually verified the calculations and obtained the same results as the code. Please recheck the calculations in the manual file for the sample users listed below.
+data = {
+    'Region': ['West', 'South', 'South', 'East', 'West', 'West', 'North', 'South', 'South', 'North', 'INM', 'Total'],
+    'City': ['Ahmedabad', 'Bangalore', 'Hyderabad', 'Kolkata', 'Mumbai', 'Pune', 'New Delhi', 'Coimbatore', 'Chennai', 'Chandigarh', 'INM', 'Total'],
+    'EOP TOTAL 2024-12-31': [13428, 19827, 6657, 4226, 21677, 3115, 49716, 12648, 13346, 3711, 0, 148352],
+    'EOP-ASSETS-MTD-07': [13495, 19763, 6362, 4028, 21669, 3271, 49712, 12256, 12834, 3599, 0, 146990],
+    'EOP-ASSETS-MTD-08': [13522, 19664, 6292, 4037, 21651, 3194, 49806, 12528, 12789, 3610, 0, 147092],
+    'Daily Growth': [27, -100, -70, 9, -18, 77, 94, 272, -45, 11, 0, 102],
+    'Growth vs Month end': [94, -163, -365, -190, -26, 79, 90, -121, -557, -100, 0, -1261]
+}
+pivot_5 = pd.DataFrame(data)
+
+with pd.ExcelWriter('formatted_pivot.xlsx', engine='xlsxwriter') as writer:
+    sheet = 'sheet5'
+    start_row = 1
+    workbook = writer.book
+    worksheet = workbook.add_worksheet(sheet)
+    border_val = 1
+
+    title_fmt = workbook.add_format({
+        'bold': True,
+        'font_name': 'Calibri',
+        'align': 'center',
+        'valign': 'vcenter',
+        'bg_color': '#FFD700',
+        'font_color': '#101820',
+        'border': border_val
+    })
+    header_fmt = workbook.add_format({
+        'bold': True,
+        'font_name': 'Calibri',
+        'align': 'center',
+        'valign': 'vcenter',
+        'bg_color': '#4A4A4A',
+        'font_color': '#FFFFFF',
+        'border': border_val
+    })
+    default_fmt = workbook.add_format({
+        'font_name': 'Calibri',
+        'font_color': '#101820',
+        'border': border_val
+    })
+    numeric_fmt = workbook.add_format({
+        'font_name': 'Calibri',
+        'font_color': '#101820',
+        'border': border_val,
+        'num_format': '#,##0'
+    })
+    neg_numeric_fmt = workbook.add_format({
+        'font_name': 'Calibri',
+        'font_color': '#DC143C',
+        'border': border_val,
+        'num_format': '#,##0'
+    })
+    total_fmt = workbook.add_format({
+        'bold': True,
+        'font_name': 'Calibri',
+        'bg_color': '#D1D3D4',
+        'font_color': '#101820',
+        'border': border_val,
+        'num_format': '#,##0'
+    })
+
+    worksheet.write(start_row - 1, 0, "Assets", title_fmt)
+
+    for col_idx, col_name in enumerate(pivot_5.columns):
+        worksheet.write(start_row, col_idx, col_name, header_fmt)
+
+    for row_idx, row in enumerate(pivot_5.itertuples(index=False), start=start_row + 1):
+        is_total = "total" in str(row[0]).lower()
+        for col_idx, cell_val in enumerate(row):
+            cell_format = total_fmt if is_total else default_fmt
+            if pd.notna(cell_val) and isinstance(cell_val, (int, float)):
+                cell_format = total_fmt if is_total else (neg_numeric_fmt if cell_val < 0 else numeric_fmt)
+            worksheet.write(row_idx, col_idx, cell_val, cell_format)
+
+    for col_idx in range(pivot_5.shape[1]):
+        header_text = str(pivot_5.columns[col_idx])
+        max_width = len(header_text)
+        for r in range(pivot_5.shape[0]):
+            cell_text = str(pivot_5.iloc[r, col_idx])
+            max_width = max(max_width, len(cell_text))
+        worksheet.set_column(col_idx, col_idx, max_width + 2)
+
+workbook.close()
+print("Excel file 'formatted_pivot.xlsx' has been created.")
