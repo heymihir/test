@@ -1,17 +1,14 @@
 import pandas as pd
 
-# Get a list of the original columns
-cols = list(merged.columns)
-offset = 0  # to adjust for newly inserted columns
+# Filter columns containing '_eq_' in their names
+eq_cols = merged.filter(like='_eq_')
 
-# Loop over pairs: (0,1), (2,3), etc.
-for i in range(1, len(cols), 2):
-    # Check equality of the previous two columns row-wise
-    eq = merged[cols[i-1]] == merged[cols[i]]
-    # Define a name for the new column
-    new_col_name = f"{cols[i-1]}_eq_{cols[i]}"
-    # Insert the new column after the current pair (adjust index using offset)
-    merged.insert(i + offset + 1, new_col_name, eq)
-    offset += 1
+# Create a summary table
+summary = pd.DataFrame({
+    'Column Name': eq_cols.columns,
+    'Match Rate': eq_cols.mean(),             # Fraction of True values
+    'Count True': eq_cols.sum(),              # Total count of True values
+    'Count False': (~eq_cols).sum()           # Total count of False values
+}).reset_index(drop=True)
 
-print(merged.head())
+print(summary)
