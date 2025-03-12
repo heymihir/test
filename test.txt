@@ -1,14 +1,4 @@
-import pandas as pd
+After reviewing the code output for March 5 and March 9, I found an asset mismatch rate of approximately 10%, primarily due to the following reasons:
 
-# Filter columns containing '_eq_' in their names
-eq_cols = merged.filter(like='_eq_')
-
-# Create a summary table
-summary = pd.DataFrame({
-    'Column Name': eq_cols.columns,
-    'Match Rate': eq_cols.mean(),             # Fraction of True values
-    'Count True': eq_cols.sum(),              # Total count of True values
-    'Count False': (~eq_cols).sum()           # Total count of False values
-}).reset_index(drop=True)
-
-print(summary)
+The MTD-09 asset data is missing from the manual file.
+The average values in the code output do not match those in the manual file. I manually verified the calculations and obtained the same results as the code. Please recheck the calculations in the manual file for the sample users listed below.
