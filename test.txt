@@ -1,29 +1,15 @@
-import pandas as pd
+eop_df_1 = eop_df.copy()
 
-def update_base_data(base_data, new_data, base_key, new_key, columns_to_update, mapping):
-    mask = base_data[base_key].isin(new_data[new_key])
-    for col in columns_to_update:
-        base_data.loc[mask, col] = base_data.loc[mask, base_key].map(
-            new_data.set_index(new_key)[mapping[col]]
-        )
-    return base_data
+eop_df_1.set_index('CUST_ID.1', inplace=True)
+CUSTOMER_MASTER.set_index('CUST_ID.1', inplace=True)
 
-df_updated = pd.DataFrame({
-    'CUST_ID.1': [1, 2, 3, 4],
-    'Name': ['Alice', 'Bob', 'Charlie', 'David'],
-    'Amount': [100, 200, 300, 400],
-    'Other': ['X', 'Y', 'Z', 'W']
-})
+common_cols = [col for col in eop_df_1.columns if col in CUSTOMER_MASTER.columns]
+eop_df_1.update(CUSTOMER_MASTER[common_cols])
 
-df_new_customers = pd.DataFrame({
-    'Cust Id': [2, 4],
-    'New Name': ['Robert', 'Dave'],
-    'New Amount': [250, 450],
-    'Extra': ['A', 'B']
-})
+missing_cols = [col for col in CUSTOMER_MASTER.columns if col not in eop_df_1.columns]
 
-columns_to_update = ['Name', 'Amount']
-mapping = {'Name': 'New Name', 'Amount': 'New Amount'}
+if missing_cols:
+    to_merge = CUSTOMER_MASTER[missing_cols]
+    eop_df_1 = eop_df_1.merge(to_merge, how='left', left_index=True, right_index=True)
 
-df_updated = update_base_data(df_updated, df_new_customers, 'CUST_ID.1', 'Cust Id', columns_to_update, mapping)
-print(df_updated)
+eop_df_1 = eop_df_1.reset_index()
