@@ -1,93 +1,10 @@
-import pandas as pd
+columns_to_update = ['Name', 'Amount']
+mapping = {'Name': 'New Name', 'Amount': 'New Amount'}
 
-# Assuming pivot_5 DataFrame is defined as given
+mask = df_updated['CUST_ID.1'].isin(df_new_customers['Cust Id'])
+for col in columns_to_update:
+    df_updated.loc[mask, col] = df_updated.loc[mask, 'CUST_ID.1'].map(
+        df_new_customers.set_index('Cust Id')[mapping[col]]
+    )
 
-with pd.ExcelWriter('formatted_pivot.xlsx', engine='xlsxwriter') as writer:
-    sheet = "sheet5"
-    start_row = 1
-    workbook = writer.book
-    worksheet = workbook.add_worksheet(sheet)
-    border_val = 1
-
-    # Define formats
-    title_format = workbook.add_format({
-        'bold': True,
-        'font_name': 'Calibri',
-        'align': 'center',
-        'valign': 'vcenter',
-        'bg_color': '#FFD700',
-        'font_color': '#101820',
-        'border': border_val
-    })
-
-    header_format = workbook.add_format({
-        'bold': True,
-        'font_name': 'Calibri',
-        'align': 'center',
-        'valign': 'vcenter',
-        'bg_color': '#4A4A4A',
-        'font_color': '#FFFFFF',
-        'border': border_val
-    })
-
-    default_text_format = workbook.add_format({
-        'font_name': 'Calibri',
-        'font_color': '#101820',
-        'border': border_val
-    })
-
-    number_format = workbook.add_format({
-        'font_name': 'Calibri',
-        'font_color': '#101820',
-        'border': border_val,
-        'num_format': '#,##0'
-    })
-
-    negative_number_format = workbook.add_format({
-        'font_name': 'Calibri',
-        'font_color': '#DC143C',
-        'border': border_val,
-        'num_format': '#,##0'
-    })
-
-    total_row_format = workbook.add_format({
-        'bold': True,
-        'font_name': 'Calibri',
-        'bg_color': '#D1D3D4',
-        'font_color': '#101820',
-        'border': border_val,
-        'num_format': '#,##0'
-    })
-
-    # Write title in A1
-    worksheet.write(start_row - 1, 0, "ASSETS", title_format)
-
-    # Write header row
-    for col_idx, col_name in enumerate(pivot_5.columns):
-        worksheet.write(start_row, col_idx, col_name, header_format)
-
-    # Write data rows
-    for row_idx, row in enumerate(pivot_5.itertuples(index=False), start=start_row + 1):
-        is_grand_total = "total" in str(row[0]).lower()
-        for col_idx, cell_val in enumerate(row):
-            # For Region and City columns (assumed columns 0 and 1), always use text format.
-            if col_idx in [0, 1]:
-                cell_fmt = total_row_format if is_grand_total else default_text_format
-            else:
-                if pd.notna(cell_val) and isinstance(cell_val, (int, float)):
-                    cell_fmt = total_row_format if is_grand_total else (negative_number_format if cell_val < 0 else number_format)
-                else:
-                    cell_fmt = total_row_format if is_grand_total else default_text_format
-            worksheet.write(row_idx, col_idx, cell_val, cell_fmt)
-
-    # Auto-adjust column widths
-    for col_idx in range(pivot_5.shape[1]):
-        header_text = str(pivot_5.columns[col_idx])
-        max_width = len(header_text)
-        for r in range(pivot_5.shape[0]):
-            cell_text = str(pivot_5.iloc[r, col_idx])
-            max_width = max(max_width, len(cell_text))
-        worksheet.set_column(col_idx, col_idx, max_width + 2)
-
-workbook.close()
-print("Excel file 'formatted_pivot.xlsx' has been created.")
+print(df_updated)
