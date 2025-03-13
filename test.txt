@@ -1,15 +1,1 @@
-eop_df_1 = eop_df.copy()
-
-eop_df_1.set_index('CUST_ID.1', inplace=True)
-CUSTOMER_MASTER.set_index('CUST_ID.1', inplace=True)
-
-common_cols = [col for col in eop_df_1.columns if col in CUSTOMER_MASTER.columns]
-eop_df_1.update(CUSTOMER_MASTER[common_cols])
-
-missing_cols = [col for col in CUSTOMER_MASTER.columns if col not in eop_df_1.columns]
-
-if missing_cols:
-    to_merge = CUSTOMER_MASTER[missing_cols]
-    eop_df_1 = eop_df_1.merge(to_merge, how='left', left_index=True, right_index=True)
-
-eop_df_1 = eop_df_1.reset_index()
+df.columns = [re.sub(r'(?i)avg', 'Avg', col) for col in df.columns]
