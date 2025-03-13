@@ -1,9 +1,37 @@
 import os
 
-if os.path.exists("NTB tracker.xlsx"):
-    mapping = {'Name': 'New Name', 'Amount': 'New Amount'}
+if os.path.exists("NTB YTD - 2025.xlsx"):
+    df_new_customer_file, file_name = read_password_excel(file_pattern='NTB YTD',
+                                                          password='sme',
+                                                          sheet_name='NTB')
+    mapping = {
+        'CUST_NAME': 'Name',
+        'RM': 'BD RM Name',
+        'TL': 'BD TL Name',
+        'Region': 'Region',
+        'City': 'City',
+        'cust_id': 'Cust ID'
+    }
     mask = df_updated['CUST_ID.1'].isin(df_new_customer_file['Cust Id'])
+    updated_count = mask.sum()
+    changes = []
+
     for base_col, new_col in mapping.items():
-        df_updated.loc[mask, base_col] = df_updated.loc[mask, 'CUST_ID.1'].map(
-            df_new_customer_file.set_index('Cust Id')[new_col]
-        )
+        old_vals = df_updated.loc[mask, base_col].copy()
+        new_vals = df_new_customer_file.set_index('Cust Id')[new_col]
+        updated_vals = df_updated.loc[mask, 'CUST_ID.1'].map(new_vals)
+        df_updated.loc[mask, base_col] = updated_vals
+        diff = (old_vals != updated_vals)
+        if diff.any():
+            changes.append(
+                df_updated.loc[mask, ['CUST_ID.1']].assign(
+                    Column=base_col,
+                    Old=old_vals,
+                    New=updated_vals
+                )[diff]
+            )
+
+    if changes:
+        changes_df = pd.concat(changes)
+        print(f"Number of customers updated: {updated_count}")
+        print(changes_df)
