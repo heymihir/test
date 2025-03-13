@@ -1,1 +1,9 @@
-df.columns = [re.sub(r'(?i)avg', 'Avg', col) for col in df.columns]
+import os
+
+if os.path.exists("NTB tracker.xlsx"):
+    mapping = {'Name': 'New Name', 'Amount': 'New Amount'}
+    mask = df_updated['CUST_ID.1'].isin(df_new_customer_file['Cust Id'])
+    for base_col, new_col in mapping.items():
+        df_updated.loc[mask, base_col] = df_updated.loc[mask, 'CUST_ID.1'].map(
+            df_new_customer_file.set_index('Cust Id')[new_col]
+        )
