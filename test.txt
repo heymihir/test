@@ -1,10 +1,32 @@
-columns_to_update = ['Name', 'Amount']
-mapping = {'Name': 'New Name', 'Amount': 'New Amount'}
+def update_balances(base_data, daily_data):
+    # Removed single avg_column update logic and replaced with updating all columns present in daily_data (except 'cust_id')
+    update_columns = [col for col in daily_data.columns if col != 'cust_id']  # change: get all columns to update
+    
+    print(f'Columns to update: {update_columns}')  # change: print all update columns
 
-mask = df_updated['CUST_ID.1'].isin(df_new_customers['Cust Id'])
-for col in columns_to_update:
-    df_updated.loc[mask, col] = df_updated.loc[mask, 'CUST_ID.1'].map(
-        df_new_customers.set_index('Cust Id')[mapping[col]]
-    )
+    existing_customers = daily_data[daily_data['cust_id'].isin(base_data['cust_id'])].copy()
+    new_customers = daily_data[~daily_data['cust_id'].isin(base_data['cust_id'])].copy()  # customers that are in daily_data but not in base_data
 
-print(df_updated)
+    # ntb customer
+    new_customers['NTB_FLAG'] = 1
+    base_data.loc[base_data['cust_id'].isin(existing_customers['cust_id']), 'NTB_FLAG'] = 0
+    base_data_indexed = base_data.set_index('cust_id')
+
+    # Loop through each column from daily_data (excluding 'cust_id') and update base_data accordingly
+    existing_customers_indexed = existing_customers.set_index('cust_id')
+    for col in update_columns:  # change: iterate over all columns to update
+        if col not in base_data_indexed.columns:
+            print(f'Creating New Column: {col}')  # change: print when creating a new column
+            base_data_indexed[col] = np.nan  # change: initialize missing column with NaN
+        base_data_indexed.loc[existing_customers_indexed.index, col] = existing_customers_indexed[col]  # change: update each column
+
+    updated_data = base_data_indexed.reset_index()
+    updated_data = pd.concat([updated_data, new_customers], ignore_index=True, sort=False)
+    # updated_data = updated_data.drop_duplicates(subset='cust_id', keep='last')
+
+    return updated_data
+
+df_updated = df_base_data.copy()
+df_updated = update_balances(df_updated, df_cuva_avg)
+df_updated = update_balances(df_updated, df_tmd_avg)
+df_updated = update_balances(df_updated, df_fcy_avg)
