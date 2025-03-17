@@ -1,1 +1,22 @@
-.
+# Define the mapping dictionary
+prod_code_mapping = {
+    'SDN': 'Non Financial Guarantees',
+    'SDG': 'Non Financial Guarantees',
+    'SBT': 'Financial Guarantees',
+    'SDC': 'Financial Guarantees',
+    'DC': 'LC',
+    'DPC': 'LC',
+    'DPF': 'Financial Guarantee',
+    'BR': 'Acceptances',
+    'DPB': 'Acceptances',
+    'SBR': 'Acceptances',
+    'BAC': 'DC Confirmation',
+    'BPC': 'DC Confirmation',
+    'Not given': 'Shipping GTEs'
+}
+
+
+# Apply mapping
+df['product_code'] = df['prod_code'].map(prod_code_mapping)
+
+
