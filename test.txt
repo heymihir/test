@@ -1,37 +1,17 @@
-import os
+Subject: Confirmation on Data accuracy and Pivot Formats 
 
-if os.path.exists("NTB YTD - 2025.xlsx"):
-    df_new_customer_file, file_name = read_password_excel(file_pattern='NTB YTD',
-                                                          password='sme',
-                                                          sheet_name='NTB')
-    mapping = {
-        'CUST_NAME': 'Name',
-        'RM': 'BD RM Name',
-        'TL': 'BD TL Name',
-        'Region': 'Region',
-        'City': 'City',
-        'cust_id': 'Cust ID'
-    }
-    mask = df_updated['CUST_ID.1'].isin(df_new_customer_file['Cust Id'])
-    updated_count = mask.sum()
-    changes = []
+Steps to Generate Output Base File:
 
-    for base_col, new_col in mapping.items():
-        old_vals = df_updated.loc[mask, base_col].copy()
-        new_vals = df_new_customer_file.set_index('Cust Id')[new_col]
-        updated_vals = df_updated.loc[mask, 'CUST_ID.1'].map(new_vals)
-        df_updated.loc[mask, base_col] = updated_vals
-        diff = (old_vals != updated_vals)
-        if diff.any():
-            changes.append(
-                df_updated.loc[mask, ['CUST_ID.1']].assign(
-                    Column=base_col,
-                    Old=old_vals,
-                    New=updated_vals
-                )[diff]
-            )
+Place input files in the current data folder.
+Run Clean_base_data.ipynb to clean the base data (one-time activity).
+Update the customer master using Clean_base_data.ipynb whenever changes occur.
+Execute Daily_Run.ipynb to generate the base file and output pivots (to be done daily).
+Required Confirmations:
 
-    if changes:
-        changes_df = pd.concat(changes)
-        print(f"Number of customers updated: {updated_count}")
-        print(changes_df)
+Pivot formats.
+NTB customer validation: Need 9 March NTB tracker to match the NTB customer count.
+Testing Results:
+After reviewing the code output for March 5 and March 9, we observed an overall ~95% match, with an asset mismatch rate of ~10%, due to:
+
+Missing asset data after MTD-06 in the manual file, causing discrepancies.
+A difference in MTD average columns between the code output and the manual file. Manual verification aligns with the code’s calculations, indicating either a miscalculation in my averaging method or incorrect values in the manual file. Further validation is needed for a few sample users to confirm accuracy.
