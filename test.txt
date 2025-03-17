@@ -1,22 +1,18 @@
-# Define the mapping dictionary
-prod_code_mapping = {
-    'SDN': 'Non Financial Guarantees',
-    'SDG': 'Non Financial Guarantees',
-    'SBT': 'Financial Guarantees',
-    'SDC': 'Financial Guarantees',
-    'DC': 'LC',
-    'DPC': 'LC',
-    'DPF': 'Financial Guarantee',
-    'BR': 'Acceptances',
-    'DPB': 'Acceptances',
-    'SBR': 'Acceptances',
-    'BAC': 'DC Confirmation',
-    'BPC': 'DC Confirmation',
-    'Not given': 'Shipping GTEs'
-}
+import pandas as pd
 
+# Sample DataFrame with whitespace and mixed-case values
+df = pd.DataFrame({
+    ' col 1 ': [' A ', 'B ', ' C'],
+    ' col 2 ': [' x ', ' Y', ' z '],
+    'amount_os_lcy': [' 100 ', ' 200', '300 ']
+})
 
-# Apply mapping
-df['product_code'] = df['prod_code'].map(prod_code_mapping)
+# Remove whitespace from column names
+df.columns = df.columns.str.strip().str.replace(' ', '_')
 
+# Remove whitespace from all values and capitalize them
+df = df.applymap(lambda x: str(x).strip().upper())
 
+# Display the cleaned DataFrame
+import ace_tools as tools
+tools.display_dataframe_to_user(name="Cleaned DataFrame", dataframe=df)
