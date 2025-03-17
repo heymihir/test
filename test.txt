@@ -1,17 +1,1 @@
-Subject: Confirmation on Data accuracy and Pivot Formats 
-
-Steps to Generate Output Base File:
-
-Place input files in the current data folder.
-Run Clean_base_data.ipynb to clean the base data (one-time activity).
-Update the customer master using Clean_base_data.ipynb whenever changes occur.
-Execute Daily_Run.ipynb to generate the base file and output pivots (to be done daily).
-Required Confirmations:
-
-Pivot formats.
-NTB customer validation: Need 9 March NTB tracker to match the NTB customer count.
-Testing Results:
-After reviewing the code output for March 5 and March 9, we observed an overall ~95% match, with an asset mismatch rate of ~10%, due to:
-
-Missing asset data after MTD-06 in the manual file, causing discrepancies.
-A difference in MTD average columns between the code output and the manual file. Manual verification aligns with the code’s calculations, indicating either a miscalculation in my averaging method or incorrect values in the manual file. Further validation is needed for a few sample users to confirm accuracy.
+.
