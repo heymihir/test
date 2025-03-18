@@ -1,16 +1,74 @@
-    SELECT 
-        IP_SRCE_KEY as CUST_ID,
-        year(BATCH_DT)   AS YEAR,               -- or EXTRACT(YEAR FROM BATCH_DT)
-        quarter(BATCH_DT) AS QUARTER,           -- or EXTRACT(QUARTER FROM BATCH_DT)
-        SUM(COALESCE(POLPOR * -0.01 / 1000000, 0)) AS bal
-    FROM {dataset}.HUB_LSACMSP_M  -- loan bal
-    WHERE POSTUS in ('1','2','3')
-      AND POAPTY in ('LRC','OL7','LFC','ALG','CNH','SLU','OLS','LAB','STC','FLN','IFQ','IF9','LBC','MLT','O14','OL1','OL2','OL3','OL6','RFQ','RF9')
-      AND POMDFL <> 'S'
-      -- If you need to restrict to a particular date range, uncomment or adjust:
-      -- AND BATCH_DT >= '2023-01-01'
-      -- AND BATCH_DT <  '2023-04-01'
-    GROUP BY 
-        IP_SRCE_KEY,
-        year(BATCH_DT),       -- or EXTRACT(YEAR FROM BATCH_DT)
-        quarter(BATCH_DT)     -- or EXTRACT(QUARTER FROM BATCH_DT)
+import pandas as pd
+import re
+
+# Original word list in lowercase
+word_list = [
+    # Agriculture & Allied Activities
+    "agriculture", "agribusiness", "agriprocessing", "agrifood", "agro", "farming", "farm", "farmers",
+    "crop", "crops", "horticulture", "dairy", "milking", "milk", "cattle", "poultry", "beef", "pork",
+    "fish", "seafood", "aquaculture", "organic", "vegetable", "vegetables", "fruit", "fruits", "seeds",
+    "oilseed", "oilseeds", "oils", "fertilizer", "biofuel", "biofuels", "cotton", "spices",
+    
+    # Food Processing & Consumer Food
+    "food", "food ingredients", "flour", "sugar", "meal", "packaging", "package", "canned", "frozen",
+    "bakery", "snacks", "beverages", "juice", "coffee", "tea", "cocoa", "spirits", "nutraceuticals",
+    "nutrition", "nutrients", "diet", "supplement", "health", "wellness",
+    
+    # MSME / Small Business & Cottage Industries
+    "msme", "small business", "microenterprise", "cottage", "artisan", "handloom", "craft", "manufacturing",
+    
+    # Education & Training
+    "education", "school", "college", "academy", "learning", "tutoring",
+    
+    # Housing & Real Estate
+    "housing", "real estate", "construction", "dwelling", "residential", "apartment",
+    
+    # Social Infrastructure & Public Services
+    "infrastructure", "social", "community", "public", "civic", "sanitation", "water", "healthcare", "clinic", "hospital",
+    
+    # Renewable Energy & Environment
+    "renewable", "solar", "wind", "biomass", "hydro", "geothermal", "clean energy",
+    
+    # Export & Trade
+    "export", "trade", "international", "logistics", "shipping",
+    
+    # Weaker Sections & Rural/Low Income
+    "marginal", "small and marginal", "weaker", "low income", "non-institutional", "minority",
+    
+]
+
+# Example usage: check if a company name contains any PSL-related term
+def is_psl_company(company_name):
+    name = company_name.lower()
+    return any(keyword in name for keyword in word_list)
+
+
+patterns = [
+    re.compile(r'\b' + re.escape(word.lower()) + r'(?:s|ing)?\b', re.IGNORECASE)
+    for word in word_list
+]
+
+def sanitize(text):
+    """Remove special characters except alphanumerics and whitespace."""
+    return re.sub(r'[^a-zA-Z0-9\s]', '', text)
+
+def is_psl(cust_name):
+    """Check if the sanitized customer name contains any PSL keyword."""
+    sanitized_name = sanitize(cust_name.lower())
+    return any(pattern.search(sanitized_name) for pattern in patterns)
+
+# Example usage with a DataFrame
+df = pd.DataFrame({
+    "cust_name": [
+        "Jubliant Dairy",
+        "Crazy Oil seeds",
+        "Fast Package",
+        "Delicious packaged food!",
+        "Healthy Meals",
+        "Healthy Mealing",
+        "Crop Science Ltd. INC."
+    ]
+})
+
+df["is_psl"] = df["cust_name"].apply(is_psl)
+print(df)
