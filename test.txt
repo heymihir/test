@@ -1,74 +1,10 @@
 import pandas as pd
-import re
 
-# Original word list in lowercase
-word_list = [
-    # Agriculture & Allied Activities
-    "agriculture", "agribusiness", "agriprocessing", "agrifood", "agro", "farming", "farm", "farmers",
-    "crop", "crops", "horticulture", "dairy", "milking", "milk", "cattle", "poultry", "beef", "pork",
-    "fish", "seafood", "aquaculture", "organic", "vegetable", "vegetables", "fruit", "fruits", "seeds",
-    "oilseed", "oilseeds", "oils", "fertilizer", "biofuel", "biofuels", "cotton", "spices",
-    
-    # Food Processing & Consumer Food
-    "food", "food ingredients", "flour", "sugar", "meal", "packaging", "package", "canned", "frozen",
-    "bakery", "snacks", "beverages", "juice", "coffee", "tea", "cocoa", "spirits", "nutraceuticals",
-    "nutrition", "nutrients", "diet", "supplement", "health", "wellness",
-    
-    # MSME / Small Business & Cottage Industries
-    "msme", "small business", "microenterprise", "cottage", "artisan", "handloom", "craft", "manufacturing",
-    
-    # Education & Training
-    "education", "school", "college", "academy", "learning", "tutoring",
-    
-    # Housing & Real Estate
-    "housing", "real estate", "construction", "dwelling", "residential", "apartment",
-    
-    # Social Infrastructure & Public Services
-    "infrastructure", "social", "community", "public", "civic", "sanitation", "water", "healthcare", "clinic", "hospital",
-    
-    # Renewable Energy & Environment
-    "renewable", "solar", "wind", "biomass", "hydro", "geothermal", "clean energy",
-    
-    # Export & Trade
-    "export", "trade", "international", "logistics", "shipping",
-    
-    # Weaker Sections & Rural/Low Income
-    "marginal", "small and marginal", "weaker", "low income", "non-institutional", "minority",
-]
+# 1. Unique count of customers where flag is True
+unique_cust_count = df[df["flag"] == True]["cust_id"].nunique()
+print("Unique cust_ids with flag=True:", unique_cust_count)
 
-# Create a list of (word, pattern) tuples.
-patterns = [(word, re.compile(r'\b' + re.escape(word) + r'(?:s|ing)?\b', re.IGNORECASE)) for word in word_list]
-
-def sanitize(text):
-    """Remove special characters except alphanumerics and whitespace."""
-    return re.sub(r'[^a-zA-Z0-9\s]', '', text)
-
-def get_matching_keyword(cust_name):
-    """Return the first PSL keyword that matches the sanitized customer name; if none match, return None."""
-    sanitized_name = sanitize(cust_name.lower())
-    for word, pattern in patterns:
-        if pattern.search(sanitized_name):
-            return word
-    return None
-
-def is_psl(cust_name):
-    """Return True if any PSL keyword is found, else False."""
-    return get_matching_keyword(cust_name) is not None
-
-# Example usage with a DataFrame
-df = pd.DataFrame({
-    "cust_name": [
-        "Jubliant Dairy",
-        "Crazy Oil seeds",
-        "Fast Package",
-        "Delicious packaged food!",
-        "Healthy Meals",
-        "Healthy Mealing",
-        "Crop Science Ltd. INC."
-    ]
-})
-
-# Create two columns: one for the PSL flag and one for the matching keyword
-df["is_psl"] = df["cust_name"].apply(is_psl)
-df["psl_keyword"] = df["cust_name"].apply(get_matching_keyword)
-print(df)
+# 2. Sum of balance QoQ (grouped by year and quarter)
+balance_qoq = df.groupby(["year", "quarter"])["balance"].sum().reset_index()
+print("Sum of balance QoQ:")
+print(balance_qoq)
