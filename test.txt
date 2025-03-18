@@ -1,45 +1,4 @@
-import pandas as pd
-
-# Sample DataFrame structure assumed:
-# Columns: cust_id, is_psl_flag (boolean), balance, year, quarter, psl_keyword
-
-# --- Part 1: Aggregations by Year & Quarter ---
-
-# Group the data by year and quarter
-grouped = df.groupby(["year", "quarter"])
-
-# For each group, compute:
-# - PSL balance: sum of balance for rows where is_psl_flag is True.
-# - Non-PSL balance: sum of balance for rows where is_psl_flag is False.
-# - Total balance for the quarter.
-# - Count of unique customers for PSL and Non-PSL.
-agg_balance = grouped.apply(lambda x: pd.Series({
-    "PSL_balance": x.loc[x["is_psl_flag"] == True, "balance"].sum(),
-    "Non_PSL_balance": x.loc[x["is_psl_flag"] == False, "balance"].sum(),
-    "Total_balance": x["balance"].sum(),
-    "Unique_PSL_customers": x.loc[x["is_psl_flag"] == True, "cust_id"].nunique(),
-    "Unique_Non_PSL_customers": x.loc[x["is_psl_flag"] == False, "cust_id"].nunique()
-})).reset_index()
-
-# Calculate percentages of total balance
-agg_balance["PSL_percent"] = (agg_balance["PSL_balance"] / agg_balance["Total_balance"]) * 100
-agg_balance["Non_PSL_percent"] = (agg_balance["Non_PSL_balance"] / agg_balance["Total_balance"]) * 100
-
-print("Aggregated Quarterly Data:")
-print(agg_balance)
-
-
-# --- Part 2: Unique customers by PSL Keyword ---
-
-# We assume that rows with PSL matches have a non-null 'psl_keyword'.
-# Group by 'psl_keyword' and count unique cust_id.
-unique_customers_keyword = (
-    df[df["psl_keyword"].notna()]
-    .groupby("psl_keyword")["cust_id"]
-    .nunique()
-    .reset_index()
-    .rename(columns={"cust_id": "unique_customers"})
-)
-
-print("\nUnique Customers by PSL Keyword:")
-print(unique_customers_keyword)
+# Write both outputs to an Excel file with two sheets
+with pd.ExcelWriter("output.xlsx") as writer:
+    agg_balance_gb.to_excel(writer, sheet_name="Sheet1", index=False)
+    agg_balance_cmb.to_excel(writer, sheet_name="Sheet2", index=False)
