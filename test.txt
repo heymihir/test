@@ -34,28 +34,26 @@ word_list = [
     
     # Weaker Sections & Rural/Low Income
     "marginal", "small and marginal", "weaker", "low income", "non-institutional", "minority",
-    
 ]
 
-# Example usage: check if a company name contains any PSL-related term
-def is_psl_company(company_name):
-    name = company_name.lower()
-    return any(keyword in name for keyword in word_list)
-
-
-patterns = [
-    re.compile(r'\b' + re.escape(word.lower()) + r'(?:s|ing)?\b', re.IGNORECASE)
-    for word in word_list
-]
+# Create a list of (word, pattern) tuples.
+patterns = [(word, re.compile(r'\b' + re.escape(word) + r'(?:s|ing)?\b', re.IGNORECASE)) for word in word_list]
 
 def sanitize(text):
     """Remove special characters except alphanumerics and whitespace."""
     return re.sub(r'[^a-zA-Z0-9\s]', '', text)
 
-def is_psl(cust_name):
-    """Check if the sanitized customer name contains any PSL keyword."""
+def get_matching_keyword(cust_name):
+    """Return the first PSL keyword that matches the sanitized customer name; if none match, return None."""
     sanitized_name = sanitize(cust_name.lower())
-    return any(pattern.search(sanitized_name) for pattern in patterns)
+    for word, pattern in patterns:
+        if pattern.search(sanitized_name):
+            return word
+    return None
+
+def is_psl(cust_name):
+    """Return True if any PSL keyword is found, else False."""
+    return get_matching_keyword(cust_name) is not None
 
 # Example usage with a DataFrame
 df = pd.DataFrame({
@@ -70,5 +68,7 @@ df = pd.DataFrame({
     ]
 })
 
+# Create two columns: one for the PSL flag and one for the matching keyword
 df["is_psl"] = df["cust_name"].apply(is_psl)
+df["psl_keyword"] = df["cust_name"].apply(get_matching_keyword)
 print(df)
