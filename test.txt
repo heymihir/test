@@ -1,18 +1,16 @@
-import pandas as pd
-
-# Sample DataFrame with whitespace and mixed-case values
-df = pd.DataFrame({
-    ' col 1 ': [' A ', 'B ', ' C'],
-    ' col 2 ': [' x ', ' Y', ' z '],
-    'amount_os_lcy': [' 100 ', ' 200', '300 ']
-})
-
-# Remove whitespace from column names
-df.columns = df.columns.str.strip().str.replace(' ', '_')
-
-# Remove whitespace from all values and capitalize them
-df = df.applymap(lambda x: str(x).strip().upper())
-
-# Display the cleaned DataFrame
-import ace_tools as tools
-tools.display_dataframe_to_user(name="Cleaned DataFrame", dataframe=df)
+    SELECT 
+        IP_SRCE_KEY as CUST_ID,
+        year(BATCH_DT)   AS YEAR,               -- or EXTRACT(YEAR FROM BATCH_DT)
+        quarter(BATCH_DT) AS QUARTER,           -- or EXTRACT(QUARTER FROM BATCH_DT)
+        SUM(COALESCE(POLPOR * -0.01 / 1000000, 0)) AS bal
+    FROM {dataset}.HUB_LSACMSP_M  -- loan bal
+    WHERE POSTUS in ('1','2','3')
+      AND POAPTY in ('LRC','OL7','LFC','ALG','CNH','SLU','OLS','LAB','STC','FLN','IFQ','IF9','LBC','MLT','O14','OL1','OL2','OL3','OL6','RFQ','RF9')
+      AND POMDFL <> 'S'
+      -- If you need to restrict to a particular date range, uncomment or adjust:
+      -- AND BATCH_DT >= '2023-01-01'
+      -- AND BATCH_DT <  '2023-04-01'
+    GROUP BY 
+        IP_SRCE_KEY,
+        year(BATCH_DT),       -- or EXTRACT(YEAR FROM BATCH_DT)
+        quarter(BATCH_DT)     -- or EXTRACT(QUARTER FROM BATCH_DT)
