@@ -1,4 +1,22 @@
-# Write both outputs to an Excel file with two sheets
-with pd.ExcelWriter("output.xlsx") as writer:
-    agg_balance_gb.to_excel(writer, sheet_name="Sheet1", index=False)
-    agg_balance_cmb.to_excel(writer, sheet_name="Sheet2", index=False)
+from datetime import datetime, timedelta
+import calendar
+
+# Get today's date
+today = datetime.today()
+
+# Get the first day of the current month
+first_day_current_month = today.replace(day=1)
+
+# Get the last day of the previous month
+last_day_prev_month = first_day_current_month - timedelta(days=1)
+
+# Get the first day of the previous month
+first_day_prev_month = last_day_prev_month.replace(day=1)
+
+# Convert to string format
+w_end_date_s = last_day_prev_month.strftime('%Y-%m-%d')
+w_start_date_s = first_day_prev_month.strftime('%Y-%m-%d')
+
+# Print results
+print(w_start_date_s)  # Start date of last month
+print(w_end_date_s)    # End date of last month
