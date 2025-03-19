@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-import calendar
+from dateutil.relativedelta import relativedelta
 
 # Get today's date
 today = datetime.today()
@@ -13,10 +13,15 @@ last_day_prev_month = first_day_current_month - timedelta(days=1)
 # Get the first day of the previous month
 first_day_prev_month = last_day_prev_month.replace(day=1)
 
+# Subtract one month from the start date of the previous month
+start_date_prev_s = first_day_prev_month - relativedelta(months=1)
+
 # Convert to string format
 w_end_date_s = last_day_prev_month.strftime('%Y-%m-%d')
 w_start_date_s = first_day_prev_month.strftime('%Y-%m-%d')
+w_start_date_prev_s = start_date_prev_s.strftime('%Y-%m-%d')
 
 # Print results
-print(w_start_date_s)  # Start date of last month
-print(w_end_date_s)    # End date of last month
+print(w_start_date_s)     # Start date of last month
+print(w_end_date_s)       # End date of last month
+print(w_start_date_prev_s) # Start date of the month before last
