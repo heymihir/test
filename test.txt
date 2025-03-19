@@ -1,27 +1,57 @@
-from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta
+import pandas as pd
+import re
 
-# Get today's date
-today = datetime.today()
+# Original word list in lowercase
+word_list = [
+    "agriculture", "agribusiness", "agriprocessing", "agrifood", "agro", "farming", "farm", "farmers",
+    "crop", "crops", "horticulture", "dairy", "milking", "milk", "cattle", "poultry", "beef", "pork",
+    "fish", "seafood", "aquaculture", "organic", "vegetable", "vegetables", "fruit", "fruits", "seeds",
+    "oilseed", "oilseeds", "oils", "fertilizer", "biofuel", "biofuels", "cotton", "spices",
+    "food", "food ingredients", "flour", "sugar", "meal", "packaging", "package", "canned", "frozen",
+    "bakery", "snacks", "beverages", "juice", "coffee", "tea", "cocoa", "spirits", "nutraceuticals",
+    "nutrition", "nutrients", "diet", "supplement", "health", "wellness",
+    "msme", "small business", "microenterprise", "cottage", "artisan", "handloom", "craft", "manufacturing",
+    "education", "school", "college", "academy", "learning", "tutoring",
+    "housing", "real estate", "construction", "dwelling", "residential", "apartment",
+    "infrastructure", "social", "community", "public", "civic", "sanitation", "water", "healthcare", "clinic", "hospital",
+    "renewable", "solar", "wind", "biomass", "hydro", "geothermal", "clean energy",
+    "export", "trade", "international", "logistics", "shipping",
+    "marginal", "small and marginal", "weaker", "low income", "non-institutional", "minority",
+]
 
-# Get the first day of the current month
-first_day_current_month = today.replace(day=1)
+# Create a list of (word, pattern) tuples.
+patterns = [(word, re.compile(r'\b' + re.escape(word) + r'(?:s|ing)?\b', re.IGNORECASE)) for word in word_list]
 
-# Get the last day of the previous month
-last_day_prev_month = first_day_current_month - timedelta(days=1)
+def sanitize(text):
+    # Change: Added check to return an empty string if text is None or not a string
+    if not isinstance(text, str):
+        return ""
+    return re.sub(r'[^a-zA-Z0-9\s]', '', text)
 
-# Get the first day of the previous month
-first_day_prev_month = last_day_prev_month.replace(day=1)
+def get_matching_keyword(cust_name):
+    sanitized_name = sanitize(cust_name.lower())
+    for word, pattern in patterns:
+        if pattern.search(sanitized_name):
+            return word
+    return None
 
-# Subtract one month from the start date of the previous month
-start_date_prev_s = first_day_prev_month - relativedelta(months=1)
+def is_psl(cust_name):
+    return get_matching_keyword(cust_name) is not None
 
-# Convert to string format
-w_end_date_s = last_day_prev_month.strftime('%Y-%m-%d')
-w_start_date_s = first_day_prev_month.strftime('%Y-%m-%d')
-w_start_date_prev_s = start_date_prev_s.strftime('%Y-%m-%d')
+# Example DataFrame
+df = pd.DataFrame({
+    "cust_name": [
+        "Jubliant Dairy",
+        "Crazy Oil seeds",
+        "Fast Package",
+        "Delicious packaged food!",
+        "Healthy Meals",
+        "Healthy Mealing",
+        "Crop Science Ltd. INC.",
+        None  # Example row with None value
+    ]
+})
 
-# Print results
-print(w_start_date_s)     # Start date of last month
-print(w_end_date_s)       # End date of last month
-print(w_start_date_prev_s) # Start date of the month before last
+df["is_psl"] = df["cust_name"].apply(is_psl)
+df["psl_keyword"] = df["cust_name"].apply(get_matching_keyword)
+print(df)
