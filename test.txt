@@ -1,57 +1,18 @@
-import pandas as pd
-import re
+def update_balances(base_data, daily_data_list):
+    daily_data_all = pd.concat(daily_data_list, ignore_index=True)
+    update_columns = [col for col in daily_data_all.columns if col != 'cust_id']
+    existing = daily_data_all[daily_data_all['cust_id'].isin(base_data['cust_id'])]
+    new = daily_data_all[~daily_data_all['cust_id'].isin(base_data['cust_id'])]
+    new['NTB_FLAG'] = 1
+    base_data.loc[base_data['cust_id'].isin(existing['cust_id']), 'NTB_FLAG'] = 0
+    base_index = base_data.set_index('cust_id')
+    existing_index = existing.set_index('cust_id')
+    for col in update_columns:
+        if col not in base_index.columns:
+            base_index[col] = np.nan
+        base_index.loc[existing_index.index, col] = existing_index[col]
+    updated = base_index.reset_index()
+    updated = pd.concat([updated, new], ignore_index=True, sort=False)
+    return updated
 
-# Original word list in lowercase
-word_list = [
-    "agriculture", "agribusiness", "agriprocessing", "agrifood", "agro", "farming", "farm", "farmers",
-    "crop", "crops", "horticulture", "dairy", "milking", "milk", "cattle", "poultry", "beef", "pork",
-    "fish", "seafood", "aquaculture", "organic", "vegetable", "vegetables", "fruit", "fruits", "seeds",
-    "oilseed", "oilseeds", "oils", "fertilizer", "biofuel", "biofuels", "cotton", "spices",
-    "food", "food ingredients", "flour", "sugar", "meal", "packaging", "package", "canned", "frozen",
-    "bakery", "snacks", "beverages", "juice", "coffee", "tea", "cocoa", "spirits", "nutraceuticals",
-    "nutrition", "nutrients", "diet", "supplement", "health", "wellness",
-    "msme", "small business", "microenterprise", "cottage", "artisan", "handloom", "craft", "manufacturing",
-    "education", "school", "college", "academy", "learning", "tutoring",
-    "housing", "real estate", "construction", "dwelling", "residential", "apartment",
-    "infrastructure", "social", "community", "public", "civic", "sanitation", "water", "healthcare", "clinic", "hospital",
-    "renewable", "solar", "wind", "biomass", "hydro", "geothermal", "clean energy",
-    "export", "trade", "international", "logistics", "shipping",
-    "marginal", "small and marginal", "weaker", "low income", "non-institutional", "minority",
-]
-
-# Create a list of (word, pattern) tuples.
-patterns = [(word, re.compile(r'\b' + re.escape(word) + r'(?:s|ing)?\b', re.IGNORECASE)) for word in word_list]
-
-def sanitize(text):
-    # Change: Added check to return an empty string if text is None or not a string
-    if not isinstance(text, str):
-        return ""
-    return re.sub(r'[^a-zA-Z0-9\s]', '', text)
-
-def get_matching_keyword(cust_name):
-    sanitized_name = sanitize(cust_name.lower())
-    for word, pattern in patterns:
-        if pattern.search(sanitized_name):
-            return word
-    return None
-
-def is_psl(cust_name):
-    return get_matching_keyword(cust_name) is not None
-
-# Example DataFrame
-df = pd.DataFrame({
-    "cust_name": [
-        "Jubliant Dairy",
-        "Crazy Oil seeds",
-        "Fast Package",
-        "Delicious packaged food!",
-        "Healthy Meals",
-        "Healthy Mealing",
-        "Crop Science Ltd. INC.",
-        None  # Example row with None value
-    ]
-})
-
-df["is_psl"] = df["cust_name"].apply(is_psl)
-df["psl_keyword"] = df["cust_name"].apply(get_matching_keyword)
-print(df)
+df_updated = update_balances(df_base_data.copy(), [df_cua_avg, df_tmd_avg, df_eefc_avg])
