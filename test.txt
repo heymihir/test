@@ -1,7 +1,2 @@
-
-df = pd.DataFrame({
-    'CUST_ID.1': ['006-286736']
-})
-
-# Transformation: Adding prefix and removing hyphen
-df['cust_id'] = 'INHSBC' + df['CUST_ID.1'].str.replace('-', '')
+cmb_df['RM'] = cmb_df['RM'].combine_first(cmb_df['RM name'])
+cmb_df.drop(columns=['RM name'], inplace=True)
