@@ -1,25 +1,7 @@
-def update_balances(base_data, daily_data):
-    update_columns = [col for col in daily_data.columns if col != 'cust_id']
-    existing_customers = daily_data[daily_data['cust_id'].isin(base_data['cust_id'])]
-    new_customers = daily_data[~daily_data['cust_id'].isin(base_data['cust_id'])]
-    
-    new_customers['NTB_FLAG'] = 1  # *** Set new customers' NTB_FLAG to 1
-    if 'NTB_FLAG' not in base_data.columns:
-        base_data['NTB_FLAG'] = np.nan
-    mask = base_data['cust_id'].isin(existing_customers['cust_id']) & (~base_data['NTB_FLAG'].eq(1))  # *** Only update NTB_FLAG to 0 if not already flagged as 1
-    base_data.loc[mask, 'NTB_FLAG'] = 0
 
-    base_data_indexed = base_data.set_index('cust_id')
-    existing_customers_indexed = existing_customers.set_index('cust_id')
-    for col in update_columns:
-        if col not in base_data_indexed.columns:
-            base_data_indexed[col] = np.nan
-        base_data_indexed.loc[existing_customers_indexed.index, col] = existing_customers_indexed[col]
-    updated_data = base_data_indexed.reset_index()
-    updated_data = pd.concat([updated_data, new_customers], ignore_index=True, sort=False)
-    return updated_data
+df = pd.DataFrame({
+    'CUST_ID.1': ['006-286736']
+})
 
-df_updated = df_base_data.copy()
-df_updated = update_balances(df_updated, df_cua_avg)
-df_updated = update_balances(df_updated, df_tmd_avg)
-df_updated = update_balances(df_updated, df_fcy_avg)
+# Transformation: Adding prefix and removing hyphen
+df['cust_id'] = 'INHSBC' + df['CUST_ID.1'].str.replace('-', '')
