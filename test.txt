@@ -1,2 +1,14 @@
-cmb_df['RM'] = cmb_df['RM'].combine_first(cmb_df['RM name'])
-cmb_df.drop(columns=['RM name'], inplace=True)
+def clean_columns(df):
+    df_new = df.copy()
+    # Changed from a dict comprehension to a list comprehension to preserve duplicates and order.
+    new_columns = [unify_column(col) for col in df_new.columns]  # Build a list of new column names
+    # Print changes by comparing original and new column names pairwise.
+    for old, new in zip(df_new.columns, new_columns):
+        if old != new:
+            print(f'{old} -> {new}')
+    # Assign the new column names list, which has the same length as the original columns.
+    df_new.columns = new_columns  
+    return df_new
+
+# Example usage:
+df = clean_columns(df_base_data)
