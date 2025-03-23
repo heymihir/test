@@ -1,14 +1,17 @@
-def clean_columns(df):
-    df_new = df.copy()
-    # Changed from a dict comprehension to a list comprehension to preserve duplicates and order.
-    new_columns = [unify_column(col) for col in df_new.columns]  # Build a list of new column names
-    # Print changes by comparing original and new column names pairwise.
-    for old, new in zip(df_new.columns, new_columns):
-        if old != new:
-            print(f'{old} -> {new}')
-    # Assign the new column names list, which has the same length as the original columns.
-    df_new.columns = new_columns  
-    return df_new
+import os
 
-# Example usage:
-df = clean_columns(df_base_data)
+# Ensure the output directory exists
+output_dir = os.path.join(today_path, "output")
+os.makedirs(output_dir, exist_ok=True)
+
+# Save files in the output folder
+# df_updated.to_csv(os.path.join(today_path, "output", "Output_of_ALL balances base file.csv"), index=False)
+
+df_updated[df_updated['Region'] == "South India"].to_excel(
+    os.path.join(output_dir, "O_All balances base file_South.xlsx"), index=False)
+df_updated[df_updated['Region'] == "West India"].to_excel(
+    os.path.join(output_dir, "O_All balances base file_West.xlsx"), index=False)
+df_updated[df_updated['Region'].isin(["North India", "East India"])].to_excel(
+    os.path.join(output_dir, "O_All balances base file_North_East.xlsx"), index=False)
+df_updated[df_updated['TL'] == "Mamta Tomer"].to_excel(
+    os.path.join(output_dir, "O_All balances base file_Mamta.xlsx"), index=False)
