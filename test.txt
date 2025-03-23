@@ -1,17 +1,4 @@
-import os
-
-# Ensure the output directory exists
-output_dir = os.path.join(today_path, "output")
-os.makedirs(output_dir, exist_ok=True)
-
-# Save files in the output folder
-# df_updated.to_csv(os.path.join(today_path, "output", "Output_of_ALL balances base file.csv"), index=False)
-
-df_updated[df_updated['Region'] == "South India"].to_excel(
-    os.path.join(output_dir, "O_All balances base file_South.xlsx"), index=False)
-df_updated[df_updated['Region'] == "West India"].to_excel(
-    os.path.join(output_dir, "O_All balances base file_West.xlsx"), index=False)
-df_updated[df_updated['Region'].isin(["North India", "East India"])].to_excel(
-    os.path.join(output_dir, "O_All balances base file_North_East.xlsx"), index=False)
-df_updated[df_updated['TL'] == "Mamta Tomer"].to_excel(
-    os.path.join(output_dir, "O_All balances base file_Mamta.xlsx"), index=False)
+df_sorted2 = df.sort_values(
+    by='Region',
+    key=lambda col: col.apply(lambda x: (x == "N/A", x))
+)
