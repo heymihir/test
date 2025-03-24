@@ -1,4 +1,12 @@
+import pandas as pd
 
-# Reverse mapping from grouped_df to create product_desc in merged
-desc_mapping = {product: desc for desc, products in grouped_df["Product 1"].items() for product in products}
-merged["product_desc"] = merged["product_code"].map(desc_mapping)
+# Assume mapping_df is your dataframe containing the source file data
+# Group by 'prod desc' to see which 'Product 1' belong to each group
+grouped = mapping_df.groupby('prod desc')['Product 1'].apply(list).to_dict()
+print("Mapping of prod desc to Product 1 codes:", grouped)
+
+# Create a mapping from product code to its prod desc
+code_to_desc = mapping_df.set_index('Product 1')['prod desc'].to_dict()
+
+# Map the PRODUCT_CODE in the merged dataframe to a new column 'product_desc'
+merged['product_desc'] = merged['PRODUCT_CODE'].map(code_to_desc)
