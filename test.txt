@@ -1,4 +1,4 @@
-df_sorted2 = df.sort_values(
-    by='Region',
-    key=lambda col: col.apply(lambda x: (x == "N/A", x))
-)
+
+# Reverse mapping from grouped_df to create product_desc in merged
+desc_mapping = {product: desc for desc, products in grouped_df["Product 1"].items() for product in products}
+merged["product_desc"] = merged["product_code"].map(desc_mapping)
