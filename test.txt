@@ -1,12 +1,5 @@
-import pandas as pd
+# Create the mapping dictionary from Table 1
+mapping = table1.set_index("Product 1")["prod desc"].to_dict()
 
-# Assume mapping_df is your dataframe containing the source file data
-# Group by 'prod desc' to see which 'Product 1' belong to each group
-grouped = mapping_df.groupby('prod desc')['Product 1'].apply(list).to_dict()
-print("Mapping of prod desc to Product 1 codes:", grouped)
-
-# Create a mapping from product code to its prod desc
-code_to_desc = mapping_df.set_index('Product 1')['prod desc'].to_dict()
-
-# Map the PRODUCT_CODE in the merged dataframe to a new column 'product_desc'
-merged['product_desc'] = merged['PRODUCT_CODE'].map(code_to_desc)
+# Map the values from table2 using the dictionary
+table2["product_desc"] = table2["PRODUCT_CODE_dhruv_data"].map(mapping)
