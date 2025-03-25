@@ -1,9 +1,67 @@
-Product,EoP Funded MTD,EoP Funded MTD PY,EoP Funded MTD YoY Chg%
-Core Trade,244272.67,198535.22,23.04%
-SCS,34667.65,53685.76,-35.42%
-UBD,33205.65,30436.54,9.10%
-RF,51144.76,28899.82,76.97%
-Gift City,25753.02,19511.11,31.93%
-Trade Pay,23954.66,764.54,3033.19%
-Dealer Fin,3361.17,111.65,2910.56%
-Total,416359.58,331944.64,25.43%
+MIS Automation Process Note (Simplified)
+
+Folder Structure:
+
+/MIS Automation/
+│
+├── 1_DAILY_BALANCES_INPUT_FILES/
+├── 2_testing/
+├── 0_Base_Data_and_Customer_Master_Cleaning_NB.ipynb
+├── 1_DAILY_RUN_NOTEBOOK.ipynb
+└── 2_testing_nb.ipynb
+
+Step-by-Step Instructions:
+
+Step 1: Prepare Daily Input Files
+
+- Locate today's folder inside "1_DAILY_BALANCES_INPUT_FILES" (format: YYYY-MM-DD, e.g., 2025-03-25).
+
+- Place the following mandatory files into this folder:
+  1. Balances for BB CG_New_FCY.xlsx
+  2. Balances for BB CG_New_TMD.xlsx
+  3. Balances for BB CG_New.xlsx
+  4. CMB_BASE_dd_mm.xml (e.g., CMB_BASE_05_03.xml for March 5)
+
+- Optional files (place only if you have a new version):
+  1. BB Customer Master.xlsx (see step 2)
+  2. NTB YTD - 2025.xlsx
+  3. Assets Trend file (e.g., Assets Trend Tracker - 28th Feb 2025.xlsx)
+
+Step 2: Cleaning Optional Files (If applicable)
+
+- BB Customer Master file cleaning:
+  - Open the notebook "0_Base_Data_and_Customer_Master_Cleaning_NB.ipynb".
+  - Update the file path in Cell 1 to the folder containing your "BB Customer Master.xlsx".
+  - Run the notebook from the section "CUSTOMER MASTER" till the end.
+  - This generates a cleaned file named "CUSTOMER_MASTER.csv" in the same folder as the "BB Customer Master.xlsx" file.
+
+- All Balances file cleaning (if changes are required):
+  - Open the notebook "0_Base_Data_and_Customer_Master_Cleaning_NB.ipynb".
+  - Update the file path in Cell 1 to the folder containing the "All balances" file.
+  - Run the notebook from the section "BASE FILE" till the end.
+  - This generates "All balances cleaned_version.csv" in the same folder.
+
+Step 3: Daily MIS Automation Run
+
+- Open "1_DAILY_RUN_NOTEBOOK.ipynb".
+- In the first cell of this notebook, there is a setting called "base_directory". This is simply the location (or folder) where you've saved the MIS Automation files. If your files are saved in a different location, update this path accordingly. 
+- Ensure all required files (from Step 1 and optionally cleaned files from Step 2) are placed correctly.
+- Click "Run All" (▶▶ button) at the top of the Jupyter interface.
+
+Special Case - If you miss running the notebook for one or more days:
+
+- You must manually adjust paths within the notebook:
+  - Example: If the last run was on March 1, the next run should have been March 2. If you missed runs and today is March 5:
+    - First set today's input path ("today_path") to the March 2 folder, and the output path ("tomorrow_path") to the March 3 folder. Place all required input files in the March 2 folder and run the notebook.
+    - Repeat this process sequentially for March 3 and March 4 folders.
+    - After this, your March 5 run can proceed normally.
+
+Important Precautions:
+
+- Do not change:
+  - File names (except dates)
+  - Folder names
+  - Column names
+  - Column order
+
+In case of errors or required changes, please contact Aman Baweja.
