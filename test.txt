@@ -1,1 +1,43 @@
-Jupyter: Specify local or remote Jupyter server for connections
+WITH find_codes AS (
+    SELECT 'PEB' AS code UNION ALL
+    SELECT 'APG' UNION ALL
+    SELECT 'CGA' UNION ALL
+    SELECT 'TEB' UNION ALL
+    SELECT 'FNG' UNION ALL
+    SELECT 'REB' UNION ALL
+    SELECT 'SDN' UNION ALL
+    SELECT 'DPF' UNION ALL
+    SELECT 'GTE' UNION ALL
+    SELECT 'GOV' UNION ALL
+    SELECT 'CGB' UNION ALL
+    SELECT 'SDG' UNION ALL
+    SELECT 'SDC' UNION ALL
+    SELECT 'BBD' UNION ALL
+    SELECT 'LEG' UNION ALL
+    SELECT 'YPG' UNION ALL
+    SELECT 'SBT' UNION ALL
+    SELECT 'YFG' UNION ALL
+    SELECT 'YCG'
+)
+
+SELECT table_name, code
+FROM (
+    -- Check the STG_ME_HIE_IPDCMSP_RETN table (using the IHDCPT column)
+    SELECT 'STG_ME_HIE_IPDCMSP_RETN' AS table_name, A.IHDCPT AS code
+    FROM STG_ME_HIE_IPDCMSP_RETN A
+    WHERE A.IHDCPT IN (SELECT code FROM find_codes)
+    
+    UNION ALL
+    
+    -- Check the STG_ME_HIE_IPBLMSP_RETN table (using the IIAPTY column)
+    SELECT 'STG_ME_HIE_IPBLMSP_RETN' AS table_name, A.IIAPTY AS code
+    FROM STG_ME_HIE_IPBLMSP_RETN A
+    WHERE A.IIAPTY IN (SELECT code FROM find_codes)
+    
+    UNION ALL
+    
+    -- Check the STG_ME_HIE_EPALSFP_RETN table (using the LEAPTY column)
+    SELECT 'STG_ME_HIE_EPALSFP_RETN' AS table_name, A.LEAPTY AS code
+    FROM STG_ME_HIE_EPALSFP_RETN A
+    WHERE A.LEAPTY IN (SELECT code FROM find_codes)
+) AS results;
