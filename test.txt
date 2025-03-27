@@ -1,33 +1,15 @@
-WITH find_codes AS (
-  SELECT 'PEB' AS code UNION ALL
-  SELECT 'APG' UNION ALL
-  SELECT 'CGA' UNION ALL
-  SELECT 'TEB' UNION ALL
-  SELECT 'FNG' UNION ALL
-  SELECT 'REB' UNION ALL
-  SELECT 'SDN' UNION ALL
-  SELECT 'DPF' UNION ALL
-  SELECT 'GTE' UNION ALL
-  SELECT 'GOV' UNION ALL
-  SELECT 'CGB' UNION ALL
-  SELECT 'SDG' UNION ALL
-  SELECT 'SDC' UNION ALL
-  SELECT 'BBD' UNION ALL
-  SELECT 'LEG' UNION ALL
-  SELECT 'YPG' UNION ALL
-  SELECT 'SBT' UNION ALL
-  SELECT 'YFG' UNION ALL
-  SELECT 'YCG'
-),
-table_codes AS (
-  SELECT IHDCPT AS code FROM {dataset}.ME_HIE_IPDCMSP
-  UNION DISTINCT
-  SELECT IIAPTY AS code FROM {dataset}.ME_HIE_IPBLMSP
-  UNION DISTINCT
-  SELECT LEAPTY AS code FROM {dataset}.ME_HIE_EPALSFP
-)
-SELECT fc.code
-FROM find_codes fc
-LEFT JOIN table_codes tc
-  ON fc.code = tc.code
-WHERE tc.code IS NULL;
+import pandas as pd
+
+df = pd.DataFrame({
+    'all_code': all_code,
+    'offline_file_nf_codes': [
+        code if code in offline_file_nf_codes else None 
+        for code in all_code
+    ],
+    'offline_file_funded_codes': [
+        code if code in offline_file_funded_codes else None 
+        for code in all_code
+    ]
+})
+
+print(df)
