@@ -1,15 +1,1 @@
-import pandas as pd
-
-df = pd.DataFrame({
-    'all_code': all_code,
-    'offline_file_nf_codes': [
-        code if code in offline_file_nf_codes else None 
-        for code in all_code
-    ],
-    'offline_file_funded_codes': [
-        code if code in offline_file_funded_codes else None 
-        for code in all_code
-    ]
-})
-
-print(df)
+.
