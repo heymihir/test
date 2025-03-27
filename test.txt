@@ -19,16 +19,15 @@ WITH find_codes AS (
   SELECT 'YFG' UNION ALL
   SELECT 'YCG'
 ),
-present_codes AS (
-  SELECT DISTINCT IHDCPT AS code
-  FROM STG_ME_HIE_IPDCMSP_RETN
-  UNION
-  SELECT DISTINCT IIAPTY AS code
-  FROM STG_ME_HIE_IPBLMSP_RETN
-  UNION
-  SELECT DISTINCT LEAPTY AS code
-  FROM STG_ME_HIE_EPALSFP_RETN
+table_codes AS (
+  SELECT IHDCPT AS code FROM {dataset}.ME_HIE_IPDCMSP
+  UNION DISTINCT
+  SELECT IIAPTY AS code FROM {dataset}.ME_HIE_IPBLMSP
+  UNION DISTINCT
+  SELECT LEAPTY AS code FROM {dataset}.ME_HIE_EPALSFP
 )
-SELECT code
-FROM find_codes
-WHERE code NOT IN (SELECT code FROM present_codes);
+SELECT fc.code
+FROM find_codes fc
+LEFT JOIN table_codes tc
+  ON fc.code = tc.code
+WHERE tc.code IS NULL;
