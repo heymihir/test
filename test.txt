@@ -1,1 +1,6 @@
-.
+Thanks for sending the files earlier—they were very helpful.
+
+We identified that the mismatch for non-funded data is due to the "Guarantees code" in our offline files.
+
+Could you please re-run the query for non-funded data by including the product codes listed in the table below? Additionally, please add a new column named `prod_type` (currently, `prod_type` is an alias for the `type` column; we need it as an alias for the actual `prod_type`).
+
