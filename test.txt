@@ -1,22 +1,15 @@
-conditions = [
-    ('west_india_df', df_updated[df_updated['Region'] == "West India"]),
-    ('south_india_df', df_updated[df_updated['Region'] == "South India"]),
-    ('north_east_india_df', df_updated[df_updated['Region'].isin(["North India", "East India"])]),
-    ('mamta_tomer_df', df_updated[df_updated['TL'] == "Mamta Tomer"])
-]
+        number_format = workbook.add_format({
+            'num_format': '#,##0.00;-#,##0.00;"-"',  # handles 0 and blank
+            'align': 'right'
+        })
 
-for var_name, condition in conditions:
-    exec(f"{var_name} = pivot_1(condition)")
+        # Step 1: Fill missing CUST_ID.1 with cust_id
+df['CUST_ID.1'] = df['CUST_ID.1'].fillna(df['cust_id'])
 
-
-conditions = [
-    ('all', df_updated),
-    ('west_india', df_updated[df_updated['Region'] == "West India"]),
-    ('south_india', df_updated[df_updated['Region'] == "South India"]),
-    ('north_east_india', df_updated[df_updated['Region'].isin(["North India", "East India"])]),
-    ('mamta_tomer', df_updated[df_updated['TL'] == "Mamta Tomer"])
-]
-
-for name, condition_df in conditions:
-    file_name = f"{name}_output.xlsx"
-    ouput_pivot_excel_file(condition_df, file_name)
+# Step 2: Remove 'inhsbc' (case-insensitive) and insert '-' after 3 characters
+df['CUST_ID.1'] = (
+    df['CUST_ID.1']
+    .str.replace('inhsbc', '', case=False)
+    .str.upper()
+    .apply(lambda x: x[:3] + '-' + x[3:] if len(x) > 3 else x)
+)
