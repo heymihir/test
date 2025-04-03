@@ -1,15 +1,9 @@
-# Define filter conditions with keys as names for the new dataframes
-conditions = {
-    'west_india': df_updated['Region'] == "West India",
-    'south_india': df_updated['Region'] == "South India",
-    'north_east_india': df_updated['Region'].isin(["North India", "East India"]),
-    'mamta_tomer': df_updated['TL'] == "Mamta Tomer"
-}
+conditions = [
+    ('west_india_df', df_updated[df_updated['Region'] == "West India"]),
+    ('south_india_df', df_updated[df_updated['Region'] == "South India"]),
+    ('north_east_india_df', df_updated[df_updated['Region'].isin(["North India", "East India"])]),
+    ('mamta_tomer_df', df_updated[df_updated['TL'] == "Mamta Tomer"])
+]
 
-# Create a dictionary to store the resulting dataframes
-dfs = {}
-for key, condition in conditions.items():
-    dfs[key] = pivot_1(df_updated[condition])
-
-# Example usage: display the first few rows of the West India dataframe
-print(dfs['west_india'].head())
+for var_name, condition in conditions:
+    exec(f"{var_name} = pivot_1(condition)")
