@@ -7,3 +7,16 @@ conditions = [
 
 for var_name, condition in conditions:
     exec(f"{var_name} = pivot_1(condition)")
+
+
+conditions = [
+    ('all', df_updated),
+    ('west_india', df_updated[df_updated['Region'] == "West India"]),
+    ('south_india', df_updated[df_updated['Region'] == "South India"]),
+    ('north_east_india', df_updated[df_updated['Region'].isin(["North India", "East India"])]),
+    ('mamta_tomer', df_updated[df_updated['TL'] == "Mamta Tomer"])
+]
+
+for name, condition_df in conditions:
+    file_name = f"{name}_output.xlsx"
+    ouput_pivot_excel_file(condition_df, file_name)
