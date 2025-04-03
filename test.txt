@@ -1,6 +1,15 @@
-Thanks for sending the files earlier—they were very helpful.
+# Define filter conditions with keys as names for the new dataframes
+conditions = {
+    'west_india': df_updated['Region'] == "West India",
+    'south_india': df_updated['Region'] == "South India",
+    'north_east_india': df_updated['Region'].isin(["North India", "East India"]),
+    'mamta_tomer': df_updated['TL'] == "Mamta Tomer"
+}
 
-We identified that the mismatch for non-funded data is due to the "Guarantees code" in our offline files.
+# Create a dictionary to store the resulting dataframes
+dfs = {}
+for key, condition in conditions.items():
+    dfs[key] = pivot_1(df_updated[condition])
 
-Could you please re-run the query for non-funded data by including the product codes listed in the table below? Additionally, please add a new column named `prod_type` (currently, `prod_type` is an alias for the `type` column; we need it as an alias for the actual `prod_type`).
-
+# Example usage: display the first few rows of the West India dataframe
+print(dfs['west_india'].head())
