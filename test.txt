@@ -13,3 +13,27 @@ df['CUST_ID.1'] = (
     .str.upper()
     .apply(lambda x: x[:3] + '-' + x[3:] if len(x) > 3 else x)
 )
+import pandas as pd
+
+# Fill only if CUST_ID.1 is NA and cust_id is not NA; otherwise keep as NA.
+df['CUST_ID.1'] = df.apply(
+    lambda row: row['CUST_ID.1'] if pd.notna(row['CUST_ID.1']) 
+    else (row['cust_id'] if pd.notna(row['cust_id']) else row['CUST_ID.1']),
+    axis=1
+)
+
+# Remove the "INHSBC" prefix (case-insensitive)
+def remove_prefix(s):
+    if isinstance(s, str) and s.upper().startswith("INHSBC"):
+        return s[6:]
+    return s
+
+df['CUST_ID.1'] = df['CUST_ID.1'].apply(remove_prefix)
+
+# Insert a dash after the 3rd character using string slicing
+def insert_dash(s):
+    if isinstance(s, str) and len(s) > 3:
+        return s[:3] + '-' + s[3:]
+    return s
+
+df['CUST_ID.1'] = df['CUST_ID.1'].apply(insert_dash)
