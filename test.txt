@@ -1,15 +1,35 @@
-def process_id(id_str):
-    # Remove 'INHSBC' if it appears at the beginning (case-insensitive)
-    if id_str.upper().startswith("INHSBC"):
-        id_str = id_str[len("INHSBC"):]
-    # Insert a dash after the third character (if there are at least 4 characters)
-    if len(id_str) > 3:
-        return id_str[:3] + '-' + id_str[3:]
-    else:
-        return id_str
+import pandas as pd
+import numpy as np
 
-# Create a mask for rows where CUST_ID.1 is NA and cust_id is not NA.
-mask = df['CUST_ID.1'].isna() & df['cust_id'].notna()
+# Assume df_updated is already defined
 
-# Process and assign only those rows.
-df.loc[mask, 'CUST_ID.1'] = df.loc[mask, 'cust_id'].apply(process_id)
+with pd.ExcelWriter('formatted_pivot.xlsx', engine='xlsxwriter') as writer:
+    sheet_name = 'SheetNumeric'
+    df_updated.to_excel(writer, index=False, sheet_name=sheet_name, startrow=0, header=True)
+    workbook = writer.book
+    worksheet = writer.sheets[sheet_name]
+
+    numeric_cell_format = workbook.add_format({
+        'num_format': '#,##0.00',
+        'font_name': 'Calibri'
+    })
+
+    # Apply numeric formatting to numeric columns only
+    for col_idx, col in enumerate(df_updated.columns):
+        if pd.api.types.is_numeric_dtype(df_updated[col]):
+            worksheet.set_column(col_idx, col_idx, None, numeric_cell_format)
+        else:
+            # Optionally, adjust column width for non-numeric columns
+            worksheet.set_column(col_idx, col_idx, None)
+
+    # Optionally adjust column widths based on content
+    for col_idx, col in enumerate(df_updated.columns):
+        header_text = str(col)
+        max_width = len(header_text)
+        for cell in df_updated[col].astype(str):
+            max_width = max(max_width, len(cell))
+        worksheet.set_column(col_idx, col_idx, max_width + 2)
+
+    writer.save()
+
+print("Excel file 'formatted_pivot.xlsx' has been created with numeric columns formatted.")
